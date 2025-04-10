@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const briefOutputCode = document.getElementById('brief-output');
     const copyBriefBtn = document.getElementById('copy-brief-btn');
+    const downloadDocxBtn = document.getElementById('download-docx-btn'); // Added
     const copyStatus = document.getElementById('copy-status');
 
     // --- State ---
@@ -49,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function copyBriefToClipboard() {
         const briefText = briefOutputCode.textContent;
         navigator.clipboard.writeText(briefText).then(() => {
+            copyStatus.textContent = "Brief copied to clipboard!"; // Make message dynamic
             copyStatus.style.display = 'inline';
             setTimeout(() => { copyStatus.style.display = 'none'; }, 2000);
         }).catch(err => {
@@ -56,6 +58,68 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('Failed to copy brief. Please copy manually.');
         });
     }
+
+    // --- Function to generate and download DOCX ---
+    async function downloadBriefAsDocx() {
+        const briefText = briefOutputCode.textContent;
+        if (!briefText || briefText === 'Generating Brief... Please wait.' || briefText === 'Brief generation failed.') {
+            alert('Brief content is not available for download.');
+            return;
+        }
+
+        // Basic Markdown-to-HTML conversion
+        let htmlContent = briefText
+            .replace(/^# (.*$)/gm, '<h1>$1</h1>')       // H1
+            .replace(/^## (.*$)/gm, '<h2>$1</h2>')      // H2
+            .replace(/^### (.*$)/gm, '<h3>$1</h3>')     // H3 (optional)
+            .replace(/^\s*-\s+(.*$)/gm, '<li>$1</li>') // List items
+            .replace(/<\/li>\n<li>/gm, '</li><li>')    // Fix potential extra space between li
+            .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>') // Wrap list items in ul (simple approach)
+            .replace(/\n/g, '<br>');                   // Replace newlines with <br> for paragraphs
+
+        // Ensure lists are properly separated if multiple appear
+        htmlContent = htmlContent.replace(/<\/ul><br><ul>/g, '</ul><ul>');
+
+        // Add basic structure for the library
+        const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>${htmlContent}</body></html>`;
+
+        try {
+            // Check if the library is loaded (it's loaded globally from CDN)
+            if (typeof htmlDocx === 'undefined') {
+                alert('Error: Document generation library failed to load.');
+                console.error('html-to-docx library (htmlDocx) not found.');
+                return;
+            }
+
+            copyStatus.textContent = "Generating DOCX...";
+            copyStatus.style.display = 'inline';
+
+            const fileBuffer = await htmlDocx.asBlob(fullHtml);
+
+            // Use FileSaver.js logic (often included or polyfilled) or create link manually
+            const blobUrl = URL.createObjectURL(fileBuffer);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            // Extract a filename from the H1 title, default otherwise
+            const titleMatch = briefText.match(/^# (.*)/m);
+            const filename = titleMatch ? `${titleMatch[1].replace(/[^a-z0-9]/gi, '_').toLowerCase()}.docx` : 'strategic_insights_brief.docx';
+            link.download = filename;
+            document.body.appendChild(link); // Required for Firefox
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(blobUrl); // Clean up
+
+            copyStatus.textContent = "DOCX downloaded!";
+             setTimeout(() => { copyStatus.style.display = 'none'; }, 2500);
+
+        } catch (error) {
+            console.error('Error generating DOCX:', error);
+            alert('Failed to generate .docx file.');
+            copyStatus.textContent = "DOCX generation failed.";
+             setTimeout(() => { copyStatus.style.display = 'none'; }, 2500);
+        }
+    }
+
 
     function initializeTopics() {
         topics = TOPIC_DEFINITIONS.map(topic => ({ ...topic, status: 'pending', questionCount: 0 }));
@@ -105,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         console.log(`Displaying seed question for: ${topic.name}`);
-        topic.questionCount = 1; // Initialize count
+        topic.questionCount = 1;
         questionTextElement.textContent = topic.seed;
         currentAssistantQuestion = topic.seed;
         conversationHistory.push({ role: 'assistant', content: topic.seed });
@@ -137,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleNewQuestionResponse(question) {
         if (question) {
-            if (currentTopic) currentTopic.questionCount++; // Increment count for AI question
+            if (currentTopic) currentTopic.questionCount++;
             console.log(`Question count for ${currentTopic?.name}: ${currentTopic?.questionCount}`);
             questionTextElement.textContent = question;
             currentAssistantQuestion = question;
@@ -182,44 +246,33 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const currentAnswer = answerInputElement.value.trim();
-        // Only require answer if not skipping
         if (!skippedQuestion && currentAnswer === '') {
             alert('Please provide an answer or skip the question.');
             return;
         }
 
-        // Add user response (or skip indication) to history
         const historyEntry = skippedQuestion ? "User skipped question." : currentAnswer;
         conversationHistory.push({ role: 'user', content: historyEntry });
 
-        // --- MODIFICATION: Increment count if skipping ---
-        // Note: Count is incremented when a question is *displayed* (seed or AI).
-        // Skipping means the displayed question wasn't answered, but still counts.
-        // We need to check the limit *after* potentially skipping.
+        const MAX_QUESTIONS_PER_TOPIC = 3;
 
-        const MAX_QUESTIONS_PER_TOPIC = 3; // Seed + 2 Follow-ups
-
-        // Check limit *before* deciding next action
         if (currentTopic.questionCount >= MAX_QUESTIONS_PER_TOPIC) {
             console.log(`Max questions (${MAX_QUESTIONS_PER_TOPIC}) reached for topic: ${currentTopic.name}. Moving on.`);
-            moveToNextTopicOrGenerate(currentTopic.id, 'completed'); // Force completion
+            moveToNextTopicOrGenerate(currentTopic.id, 'completed');
             return;
         }
 
-        // If skipping, don't check completion, just get next question (if limit not hit)
         if (skippedQuestion) {
              console.log("Skipped question, getting next question for topic:", currentTopic.name);
              await getNextQuestionForTopic(currentTopic);
              return;
         }
 
-        // If answered and limit not hit, check completion via AI
         const isTopicComplete = await checkTopicCompletion(currentTopic);
 
         if (isTopicComplete) {
             moveToNextTopicOrGenerate(currentTopic.id, 'completed');
         } else {
-            // If topic not complete AND limit not reached, get the next AI-generated question
             await getNextQuestionForTopic(currentTopic);
         }
     }
@@ -271,7 +324,6 @@ document.addEventListener('DOMContentLoaded', () => {
         nextBtn.disabled = true; skipQuestionBtn.disabled = true; skipTopicBtn.disabled = true;
         generateBriefBtn.disabled = true; translateRequestBtn.disabled = true;
 
-        // Loading indicators
         if (payload.type === 'get_topic_question') {
             answerInputElement.disabled = true;
         } else if (payload.type === 'check_topic_completion') {
@@ -449,36 +501,31 @@ document.addEventListener('DOMContentLoaded', () => {
         let combinedText = '';
         let processedMains = new Set();
 
-        // Iterate through all checkboxes to reconstruct the text based on selection
         clarificationOptionsContainer.querySelectorAll('div').forEach(mainDiv => {
             const mainCheckbox = mainDiv.querySelector('input[type="checkbox"]:not([data-sub-objective="true"])');
             const mainText = mainDiv.dataset.mainText;
             let blockToAdd = '';
             let mainAdded = false;
 
-            // Check main checkbox first
             if (mainCheckbox && mainCheckbox.checked) {
                  blockToAdd += `- ${mainText}\n`;
                  mainAdded = true;
-                 processedMains.add(mainText); // Mark main as processed
+                 processedMains.add(mainText);
             }
 
-            // Check sub-objective checkboxes
             mainDiv.querySelectorAll('input[type="checkbox"][data-sub-objective="true"]').forEach(subCheckbox => {
                  if (subCheckbox.checked) {
-                      // If main wasn't added yet (because it wasn't checked), add it now
                       if (!mainAdded && !processedMains.has(mainText)) {
                            blockToAdd += `- ${mainText}\n`;
                            processedMains.add(mainText);
-                           mainAdded = true; // Mark as added for this block
+                           mainAdded = true;
                       }
-                      // Add the checked sub-objective, ensuring indentation
                       blockToAdd += `  - ${subCheckbox.value}\n`;
                  }
             });
 
             if (blockToAdd) {
-                 if (combinedText) combinedText += '\n'; // Add space between blocks
+                 if (combinedText) combinedText += '\n';
                  combinedText += blockToAdd;
             }
         });
@@ -514,14 +561,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (generatedBrief) {
             briefOutputCode.textContent = generatedBrief;
             copyBriefBtn.disabled = false;
+            downloadDocxBtn.disabled = false; // Enable download button
         } else {
             briefOutputCode.textContent = 'Brief generation failed.';
             copyBriefBtn.disabled = true;
+            downloadDocxBtn.disabled = true; // Keep download disabled
         }
         // generateBriefBtn.disabled = false;
     });
 
     copyBriefBtn.addEventListener('click', copyBriefToClipboard);
+
+    // Add listener for the download button
+    downloadDocxBtn.addEventListener('click', downloadBriefAsDocx);
+
 
     // --- Initial Setup ---
     questionSection.style.display = 'none';
@@ -529,6 +582,7 @@ document.addEventListener('DOMContentLoaded', () => {
     translationOutputDiv.style.display = 'none';
     generateBriefBtn.style.display = 'none';
     copyBriefBtn.disabled = true;
+    downloadDocxBtn.disabled = true; // Disable download initially
     topicSidebar.style.display = 'none';
     skipQuestionBtn.style.display = 'none';
     skipTopicBtn.style.display = 'none';

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Strategic Brief Builder</title>
+    <title>Strategic Insights Brief Builder</title> <!-- Renamed -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -19,7 +19,7 @@
             <div class="privacy-notice">
                 <p>Your data privacy and confidentiality is important. This app doesn't retain your data or use it for AI training purposes.</p>
             </div>
-            <h1>Strategic Brief Builder</h1>
+            <h1>Strategic Insights Brief Builder</h1> <!-- Renamed -->
 
             <div id="initial-request-section">
             <h2>1. Initial Request</h2>
@@ -58,13 +58,18 @@
 
         <div id="brief-output-section" class="output-section" style="display: none;">
             <h2>3. Generated Brief</h2>
-            <pre><code id="brief-output"></code></pre> <!-- Reverted to pre/code -->
-            <button id="copy-brief-btn">Copy Brief</button> <!-- Re-added copy button -->
-            <p id="copy-status" style="display: none; color: green;">Brief copied to clipboard!</p> <!-- Re-added copy status -->
+            <pre><code id="brief-output"></code></pre>
+            <div class="output-actions" style="margin-top: 15px;">
+                 <button id="copy-brief-btn">Copy Brief</button>
+                 <button id="download-docx-btn">Download .docx</button> <!-- Added download button -->
+                 <p id="copy-status" style="display: none; color: green; margin-left: 10px; display: inline-block;">Brief copied to clipboard!</p>
+            </div>
         </div>
         </div>
     </div>
 
+    <!-- Add CDN link for html-to-docx library -->
+    <script src="https://unpkg.com/html-to-docx@1.8.0/dist/html-to-docx.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
