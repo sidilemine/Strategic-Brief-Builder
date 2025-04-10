@@ -12,19 +12,68 @@ if (!openAIApiKey) {
 // --- OpenAI Client ---
 const openai = openAIApiKey ? new OpenAI({ apiKey: openAIApiKey }) : null;
 
-// --- Helper: Construct Brief Prompt ---
+// --- Helper: Construct Brief Prompt (Restored Full Instructions) ---
 function constructBriefPrompt(history) {
     const historyString = history.map(turn =>
         `${turn.role === 'user' ? 'User' : 'Assistant'}: ${turn.content}`
     ).join('\n');
-    // Identical prompt as before
+    // Restored full prompt instructions
     return `
-You are an AI assistant helping create a professional strategic research brief...
-[rest of brief prompt instructions]...
+You are an AI assistant helping create a professional strategic research brief.
+Based on the following conversation history between an assistant (asking questions) and a user (providing answers), generate a comprehensive and well-structured strategic brief.
+
+**Conversation History:**
+${historyString}
+
+**Instructions:**
+1.  Synthesize the information provided throughout the conversation history.
+2.  Structure the output exactly according to the following Markdown format.
+3.  Fill in the sections based *only* on the information provided in the history. Do not add external knowledge. Consider user inputs like "User skipped question" or "User skipped topic..." when synthesizing.
+4.  For "Project Objectives", infer 1-3 clear objectives based on the business context and challenges mentioned in the conversation.
+5.  For "Key Questions to Explore", formulate 3-5 specific, actionable research questions that directly address the core need and knowledge gaps identified in the conversation. Use the initial request and subsequent answers as context.
+6.  For "Methodological Considerations", briefly suggest 1-2 potential research approaches (e.g., qualitative interviews, quantitative survey, market analysis) that seem appropriate given the context discussed, but keep it high-level.
+7.  Ensure the tone is professional and clear.
+8.  Do NOT include the raw conversation history in the final brief output. Only use it to generate the synthesized content for each section.
+
+**Output Format (Use Markdown):**
+
+# Strategic Brief: [Generate a Concise Project Title based on the context]
+
+## Business Context
+[Synthesize the business challenge, opportunity, and objectives]
+
+## Project Objectives
+- [Synthesized primary objective]
+- [Synthesized secondary objective(s), if applicable]
+- [Expected business outcomes]
+
+## Target Audience
+[Synthesize a detailed audience definition]
+
+## Key Questions to Explore
+- [Generated Question 1]
+- [Generated Question 2]
+- [Generated Question 3]
+- [...]
+
+## Current Knowledge & Gaps
+[Summarize knowns, assumptions, gaps]
+
+## Success Metrics
+[Synthesize measurement and decision impact]
+
+## Timeline & Deliverables
+[Combine timeline, constraints, format]
+
+## Stakeholders & Distribution
+[Identify stakeholders and format]
+
+## Methodological Considerations
+[Suggest approaches, mention previous research]
 
 ---
 **Generated Brief:**
-`;
+`; // AI response starts here
 }
 
 // --- Helper: Construct Translate Prompt ---
@@ -41,7 +90,7 @@ You are an AI assistant skilled at refining business requests into actionable re
 function constructTopicQuestionPrompt(topicId, history, isFirstQuestion) {
      const historyString = history.map(turn => `${turn.role === 'user' ? 'User' : 'Assistant'}: ${turn.content}`).join('\n');
      const firstOrNext = isFirstQuestion ? "first" : "next relevant";
-     // Modified instructions below
+     // Corrected prompt instructions
      return `
 You are an AI assistant guiding a user through building a strategic research brief, focusing specifically on the topic: **${topicId.replace(/_/g, ' ')}**.
 
@@ -94,7 +143,7 @@ module.exports = async (req, res) => {
 
         // Determine prompt and settings based on type
         if (type === 'generate' && history) {
-            prompt = constructBriefPrompt(history);
+            prompt = constructBriefPrompt(history); // Use the corrected function
             // Keep default temperature 0.5
         } else if (type === 'get_topic_question' && topic && history !== undefined) {
             prompt = constructTopicQuestionPrompt(topic, history, is_first_question);
