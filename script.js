@@ -67,6 +67,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // --- MODIFICATION START: Check for library ---
+        // Check if the library is loaded (it's loaded globally from CDN)
+        if (typeof htmlDocx === 'undefined') {
+            alert('Error: Document generation library (html-docx) failed to load or is not ready. Please try again in a moment.');
+            console.error('html-to-docx library (htmlDocx) not found.');
+            // Optionally try loading it dynamically here if needed, but CDN should handle it.
+            return;
+        }
+        // --- MODIFICATION END ---
+
+
         // Basic Markdown-to-HTML conversion
         let htmlContent = briefText
             .replace(/^# (.*$)/gm, '<h1>$1</h1>')       // H1
@@ -84,13 +95,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>${htmlContent}</body></html>`;
 
         try {
-            // Check if the library is loaded (it's loaded globally from CDN)
-            if (typeof htmlDocx === 'undefined') {
-                alert('Error: Document generation library failed to load.');
-                console.error('html-to-docx library (htmlDocx) not found.');
-                return;
-            }
-
             copyStatus.textContent = "Generating DOCX...";
             copyStatus.style.display = 'inline';
 
@@ -303,9 +307,11 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn("Attempted to enable Generate Brief before all topics were processed.");
             return;
         }
-        console.log("All topics processed. Enabling Generate Brief.");
-        questionTextElement.textContent = 'All topics covered. Ready to generate the brief.';
+        console.log("All topics processed. Preparing for brief generation.");
+        // Display thank you message first
+        questionTextElement.textContent = 'Thank you! All topics are covered. I will now use your input to generate the strategic insights brief.';
         answerInputElement.disabled = true;
+        answerInputElement.style.display = 'none'; // Hide the answer input box
         nextBtn.style.display = 'none';
         skipQuestionBtn.style.display = 'none';
         skipTopicBtn.style.display = 'none';
