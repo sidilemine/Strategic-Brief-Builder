@@ -182,6 +182,7 @@ exports.handler = async (event) => {
 
     // --- Handle GENERATE request (Background) ---
     if (type === 'generate' && history && emailAddress) {
+        const model = "gpt-4o"; // Use gpt-4o for generation
         // Validate email format simply
         if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailAddress)) {
              return { statusCode: 400, body: JSON.stringify({ error: "Invalid email address format provided." }) };
@@ -196,7 +197,7 @@ exports.handler = async (event) => {
         setTimeout(async () => { // Use setTimeout to ensure response is sent before heavy lifting
             try {
                 const prompt = constructBriefPrompt(history);
-                const model = "gpt-4"; // Use powerful model for final synthesis
+                // Model is already defined above for this block
                 const temperature = 0.5;
 
                 console.log(`Background: Calling OpenAI API (Type: ${type}, Model: ${model})...`);
@@ -233,20 +234,26 @@ exports.handler = async (event) => {
     // --- Handle other request types (Synchronous) ---
     try {
         let prompt;
-        let model = "gpt-3.5-turbo";
-        let temperature = 0.5;
+        const model = "gpt-4o"; // Use gpt-4o for all synchronous tasks too
+        let temperature = 0.5; // Default temperature, adjust per type if needed
 
         if (type === 'get_topic_question' && topic && history !== undefined) {
             prompt = constructTopicQuestionPrompt(topic, history, is_first_question);
-            temperature = 0.7;
+            temperature = 0.7; // Keep slightly higher for question creativity
         } else if (type === 'check_topic_completion' && topic && history !== undefined) {
             prompt = constructTopicCompletionCheckPrompt(topic, history);
-            temperature = 0.1;
+            temperature = 0.1; // Keep low for deterministic YES/NO
         } else if (type === 'translate' && text) {
             prompt = constructTranslatePrompt(text);
+            // Keep default temperature 0.5
         } else {
-            console.error("Invalid synchronous request payload:", body);
-            return { statusCode: 400, body: JSON.stringify({ error: 'Invalid request payload or missing fields for synchronous type' }) };
+            // Exclude 'generate' type here as it's handled above
+            if (type !== 'generate') {
+                 console.error("Invalid synchronous request payload:", body);
+                 return { statusCode: 400, body: JSON.stringify({ error: 'Invalid request payload or missing fields for synchronous type' }) };
+            }
+            // If it was 'generate' but missed the background check somehow, error out
+             return { statusCode: 400, body: JSON.stringify({ error: 'Invalid generate request payload.' }) };
         }
 
         if (!prompt) {
