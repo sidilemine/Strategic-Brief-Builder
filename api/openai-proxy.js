@@ -76,14 +76,30 @@ ${historyString}
 `; // AI response starts here
 }
 
-// --- Helper: Construct Translate Prompt ---
+// --- Helper: Construct Translate Prompt (REFINED) ---
 function constructTranslatePrompt(text) {
-    // Identical prompt as before
+    // Refined prompt instructions
     return `
-You are an AI assistant skilled at refining business requests into actionable research questions... [rest of prompt omitted for brevity]
+You are an AI assistant helping users clarify their initial strategic research needs.
+A user has provided the following initial request:
 
-**Generated Research Questions:**
-`;
+"${text}"
+
+Your task is to generate 3 distinct ways to rephrase or clarify this request, presenting each as a potential starting point for a strategic brief. Each option should focus on clarifying the user's core need from a slightly different angle (e.g., focusing on the problem, the audience, the desired outcome).
+
+**Output Format:**
+- List the 3 clarification options clearly.
+- Start each option with a hyphen (-) and a space.
+- Do NOT include any introductory or concluding text, commentary, examples, or labels like "Option 1". Just output the list of 3 clarification statements.
+
+**Example Input:** "We need to understand Gen Z better"
+**Example Output:**
+- Clarify the specific business challenge related to Gen Z engagement.
+- Define which segments of Gen Z are most critical to understand and why.
+- Specify the key decisions that insights about Gen Z will inform.
+
+**Clarification Options:**
+`; // AI response starts here
 }
 
 // --- Helper: Construct Topic Question Prompt ---
@@ -152,8 +168,8 @@ module.exports = async (req, res) => {
             prompt = constructTopicCompletionCheckPrompt(topic, history);
             temperature = 0.1;
         } else if (type === 'translate' && text) {
-            prompt = constructTranslatePrompt(text);
-            // Keep default temperature 0.5
+            prompt = constructTranslatePrompt(text); // Use the refined function
+            temperature = 0.6; // Slightly higher temp for more varied clarifications
         } else {
             console.error("Invalid request payload:", req.body);
             return res.status(400).json({ error: 'Invalid request payload or missing fields for the specified type' });
@@ -191,6 +207,12 @@ module.exports = async (req, res) => {
                  result = result.toUpperCase();
              }
         }
+        // Add cleanup for translate if needed (e.g., remove leading/trailing list markers if AI adds them)
+        else if (type === 'translate' && result) {
+             // Basic cleanup: remove potential leading/trailing markdown list characters if the AI didn't follow instructions perfectly
+             result = result.replace(/^\s*-\s*/gm, '').trim();
+        }
+
 
         if (!result) throw new Error("No content received from OpenAI.");
 
