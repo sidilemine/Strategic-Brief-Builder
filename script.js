@@ -287,7 +287,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Specific loading indicators based on type
         if (payload.type === 'get_topic_question') {
-            questionTextElement.textContent = `Thinking about ${payload.topic}...`;
+            // Keep previous question visible, just disable input
+            // questionTextElement.textContent = `Thinking about ${payload.topic}...`; // REMOVED
             answerInputElement.disabled = true;
         } else if (payload.type === 'check_topic_completion') {
              // No specific text change, just button disabling
@@ -327,8 +328,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Reset specific loading indicators on error
             if (payload.type === 'generate') briefStatusMessage.textContent = 'Brief generation request failed.';
             if (payload.type === 'translate') translatedQuestionsCode.textContent = 'Translation failed.';
+            // Reset specific loading indicators on error
+            if (payload.type === 'generate') briefStatusMessage.textContent = 'Brief generation request failed.';
+            if (payload.type === 'translate') translatedQuestionsCode.textContent = 'Translation failed.';
+            // If question/completion check failed, restore input but show error in question area
             if (payload.type.includes('question') || payload.type.includes('completion')) {
-                 questionTextElement.textContent = 'An error occurred. Please try again.';
+                 questionTextElement.textContent = 'An error occurred fetching the next step. Please try again.';
                  answerInputElement.disabled = false; // Re-enable input on error
             }
             return null; // Indicate failure
