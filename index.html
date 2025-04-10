@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strategic Brief Builder</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Strategic Brief Builder</h1>
+
+        <div id="initial-request-section">
+            <h2>1. Initial Request</h2>
+            <p>Describe your strategic need or challenge:</p>
+            <textarea id="initial-request" rows="4" placeholder="e.g., We want to understand why Gen Z isn't engaging with our brand..."></textarea>
+            <button id="start-questions-btn">Start Building Brief</button>
+            <button id="translate-request-btn">Translate Request (Optional)</button>
+            <div id="translation-output" class="output-section" style="display: none;">
+                <h3>Suggested Research Questions:</h3>
+                <pre><code id="translated-questions"></code></pre>
+            </div>
+        </div>
+
+        <div id="question-section" style="display: none;">
+            <h2>2. Clarifying Questions</h2>
+            <div id="progress-indicator">
+                <span>Progress: </span>
+                <progress id="progress-bar" value="0" max="100"></progress>
+                <span id="progress-text">0%</span>
+            </div>
+            <div id="question-display">
+                <p id="question-text"></p>
+                <textarea id="answer-input" rows="4"></textarea>
+            </div>
+            <div class="navigation-buttons">
+                <button id="back-btn" disabled>Back</button>
+                <button id="next-btn">Next</button>
+                <button id="generate-brief-btn" style="display: none;">Generate Brief</button>
+            </div>
+        </div>
+
+        <div id="brief-output-section" class="output-section" style="display: none;">
+            <h2>3. Generated Brief</h2>
+            <pre><code id="brief-output"></code></pre>
+            <button id="copy-brief-btn">Copy Brief</button>
+            <p id="copy-status" style="display: none; color: green;">Brief copied to clipboard!</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

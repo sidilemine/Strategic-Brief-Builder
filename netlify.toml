@@ -1,0 +1,7 @@
+[build]
+  # Directory containing the serverless functions
+  functions = "netlify/functions"
+
+[functions]
+  # Ensure Node.js 18.x or later is used for functions if needed
+  # node_bundler = "esbuild" # Optional: Use esbuild for faster function bundling

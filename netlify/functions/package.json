@@ -1,0 +1,14 @@
+{
+  "name": "strategic-brief-builder-functions",
+  "version": "1.0.0",
+  "description": "Netlify functions for the Strategic Brief Builder",
+  "main": "openai-proxy.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "openai": "^4.0.0" 
+  }
+}
