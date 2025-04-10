@@ -18,21 +18,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextBtn = document.getElementById('next-btn');
     const skipQuestionBtn = document.getElementById('skip-question-btn');
     const skipTopicBtn = document.getElementById('skip-topic-btn');
-    // Generate section elements
-    const generateSection = document.getElementById('generate-section');
-    const emailInput = document.getElementById('email-input');
-    const generateBriefBtn = document.getElementById('generate-brief-btn');
+    const generateBriefBtn = document.getElementById('generate-brief-btn'); // Simple button
 
-    // Brief status elements
-    const briefStatusMessage = document.getElementById('brief-status-message');
-    // Removed briefOutputCode, copyBriefBtn, copyStatus references as they are no longer used
+    // Re-added brief output elements
+    const briefOutputCode = document.getElementById('brief-output');
+    const copyBriefBtn = document.getElementById('copy-brief-btn');
+    const copyStatus = document.getElementById('copy-status');
 
     // --- State ---
     let isLoading = false;
     let conversationHistory = [];
-    let topics = []; // Will be populated with { id, name, status ('pending', 'active', 'completed', 'skipped') }
-    let currentTopic = null; // The topic object currently being discussed
-    let currentAssistantQuestion = null; // The actual question text
+    // Added questionCount to topic state
+    let topics = []; // Will be populated with { id, name, seed, status ('pending', 'active', 'completed', 'skipped'), questionCount }
+    let currentTopic = null;
+    let currentAssistantQuestion = null;
 
     // --- Constants ---
     const TOPIC_DEFINITIONS = [
@@ -44,11 +43,22 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 'previous_research', name: "Previous Research & Gaps", seed: "Has any previous research been done on this? If so, what was learned, and what gaps remain?" },
         { id: 'stakeholders_distribution', name: "Stakeholders & Distribution", seed: "Finally, who will use these insights, and what format would be most useful for them?" }
     ];
-    // Removed COMPLETION_SIGNAL constant as it's handled by backend YES/NO check
 
     // --- Functions ---
 
-    // Removed copyBriefToClipboard function as brief is emailed
+    // Re-added copyBriefToClipboard function
+    function copyBriefToClipboard() {
+        const briefText = briefOutputCode.textContent;
+        navigator.clipboard.writeText(briefText).then(() => {
+            copyStatus.style.display = 'inline';
+            setTimeout(() => {
+                copyStatus.style.display = 'none';
+            }, 2000);
+        }).catch(err => {
+            console.error('Failed to copy brief: ', err);
+            alert('Failed to copy brief. Please copy manually.');
+        });
+    }
 
     function initializeTopics() {
         // Add questionCount, initialized to 0
@@ -63,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const li = document.createElement('li');
             li.textContent = topic.name;
             li.id = `topic-${topic.id}`;
-            li.className = topic.status; // Apply class based on status (pending, active, completed, skipped)
+            li.className = topic.status; // Apply class based on status
             topicListElement.appendChild(li);
         });
     }
@@ -72,47 +82,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const topicIndex = topics.findIndex(t => t.id === topicId);
         if (topicIndex !== -1) {
             topics[topicIndex].status = newStatus;
-            // Update currentTopic if the active one changed status
-            if (currentTopic && currentTopic.id === topicId && newStatus !== 'active') {
-                 // Handled by findNextTopic logic
-            }
-            renderTopicList(); // Re-render the list with updated classes
+            renderTopicList();
         }
     }
 
     function findNextTopic() {
         const nextPendingTopic = topics.find(t => t.status === 'pending');
         if (nextPendingTopic) {
-            if (currentTopic) {
-                 // Mark old topic as completed/skipped before switching
-                 // This should be handled by the calling function (handleNextStep, handleSkipTopic)
-            }
             currentTopic = nextPendingTopic;
             updateTopicStatus(currentTopic.id, 'active');
             return currentTopic;
         } else {
-            currentTopic = null; // No more pending topics
+            currentTopic = null;
             return null;
         }
     }
 
-    // Function to display the seed question for a topic
     function displaySeedQuestion(topic) {
         if (!topic || !topic.seed) {
             console.error("Cannot display seed question for topic:", topic);
             questionTextElement.textContent = "Error: Could not load the first question for this topic.";
-            // Disable inputs/buttons? Or allow skipping?
             answerInputElement.disabled = true;
             nextBtn.disabled = true;
             skipQuestionBtn.disabled = true;
-            skipTopicBtn.disabled = false; // Allow skipping the broken topic
+            skipTopicBtn.disabled = false;
             return;
         }
         console.log(`Displaying seed question for: ${topic.name}`);
-        topic.questionCount = 1; // Initialize count for this topic
+        topic.questionCount = 1; // Initialize count
         questionTextElement.textContent = topic.seed;
-        currentAssistantQuestion = topic.seed; // Store the seed question
-        conversationHistory.push({ role: 'assistant', content: topic.seed }); // Add seed question to history
+        currentAssistantQuestion = topic.seed;
+        conversationHistory.push({ role: 'assistant', content: topic.seed });
         answerInputElement.value = '';
         answerInputElement.disabled = false;
         nextBtn.disabled = false;
@@ -123,12 +123,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
      async function getNextQuestionForTopic(topic) {
          if (!topic) return null;
-         questionTextElement.textContent = `Thinking more about ${topic.name}...`;
+         // Keep previous question visible, just disable input
          answerInputElement.value = '';
          answerInputElement.disabled = true;
          nextBtn.disabled = true;
          skipQuestionBtn.disabled = true;
-         skipTopicBtn.disabled = true; // Keep disabled while loading
+         skipTopicBtn.disabled = true;
 
          const question = await callOpenAIProxy({
              type: 'get_topic_question',
@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleNewQuestionResponse(question) {
         if (question) {
-            if (currentTopic) currentTopic.questionCount++; // Increment count for AI question
+            if (currentTopic) currentTopic.questionCount++; // Increment count
             console.log(`Question count for ${currentTopic?.name}: ${currentTopic?.questionCount}`);
             questionTextElement.textContent = question;
             currentAssistantQuestion = question;
@@ -150,12 +150,11 @@ document.addEventListener('DOMContentLoaded', () => {
             answerInputElement.disabled = false;
             nextBtn.disabled = false;
             skipQuestionBtn.disabled = false;
-            skipTopicBtn.disabled = false; // Re-enable skip topic
+            skipTopicBtn.disabled = false;
             answerInputElement.focus();
         } else {
-            questionTextElement.textContent = 'Failed to get question. Please try submitting again or skip topic.';
-            // Keep buttons enabled for user action
-            answerInputElement.disabled = false;
+            questionTextElement.textContent = 'An error occurred fetching the next step. Please try again.';
+            answerInputElement.disabled = false; // Re-enable on error
             nextBtn.disabled = false;
             skipQuestionBtn.disabled = false;
             skipTopicBtn.disabled = false;
@@ -165,7 +164,6 @@ document.addEventListener('DOMContentLoaded', () => {
     async function checkTopicCompletion(topic) {
         if (!topic) return false;
         console.log(`Checking completion for topic: ${topic.name}`);
-        // Temporarily disable buttons during check
         nextBtn.disabled = true;
         skipQuestionBtn.disabled = true;
         skipTopicBtn.disabled = true;
@@ -176,10 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
             history: conversationHistory
         });
         console.log(`Completion check response for ${topic.name}:`, response);
-        // Re-enable buttons after check (unless moving to next topic/generating)
-        // Handled by the calling function (handleNextStep)
 
-        // Interpret response (expecting "YES" or "NO")
         return response && response.toUpperCase() === 'YES';
     }
 
@@ -187,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isLoading) return;
         if (!currentTopic) {
              console.error("handleNextStep called with no current topic.");
-             enableGenerateBrief(); // Should not happen, but allow generation
+             enableGenerateBrief();
              return;
         }
 
@@ -197,61 +192,50 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Add user response (or skip indication) to history
         const historyEntry = skippedQuestion ? "User skipped question." : currentAnswer;
         conversationHistory.push({ role: 'user', content: historyEntry });
 
-        // --- Check Question Limit ---
-        const MAX_QUESTIONS_PER_TOPIC = 3; // Seed + 2 Follow-ups
+        const MAX_QUESTIONS_PER_TOPIC = 3;
         if (currentTopic.questionCount >= MAX_QUESTIONS_PER_TOPIC) {
             console.log(`Max questions (${MAX_QUESTIONS_PER_TOPIC}) reached for topic: ${currentTopic.name}. Moving on.`);
-            moveToNextTopicOrGenerate(currentTopic.id, 'completed'); // Force completion
-            return; // Stop further checks/questions for this topic
+            moveToNextTopicOrGenerate(currentTopic.id, 'completed');
+            return;
         }
 
-        // --- Check Topic Completion via AI ---
         const isTopicComplete = await checkTopicCompletion(currentTopic);
 
         if (isTopicComplete) {
             moveToNextTopicOrGenerate(currentTopic.id, 'completed');
         } else {
-            // If topic not complete AND limit not reached, get the next AI-generated question
             await getNextQuestionForTopic(currentTopic);
         }
     }
 
     async function moveToNextTopicOrGenerate(currentTopicId, statusToSet) {
-         updateTopicStatus(currentTopicId, statusToSet); // Mark current as done/skipped
+         updateTopicStatus(currentTopicId, statusToSet);
 
-         // Check if ALL topics are now done or skipped
          const allTopicsProcessed = topics.every(t => t.status === 'completed' || t.status === 'skipped');
 
          if (allTopicsProcessed) {
              enableGenerateBrief();
-             return; // Exit early, no next topic to find
+             return;
          }
 
-         // Find the next topic that is still pending
-         const nextTopic = findNextTopic(); // Sets the new currentTopic and marks it active
+         const nextTopic = findNextTopic();
 
          if (nextTopic) {
-             // Start the new topic with its seed question
              displaySeedQuestion(nextTopic);
          } else {
-             // This case should ideally be caught by allTopicsProcessed check above,
-             // but as a fallback, enable generation.
              console.warn("moveToNextTopicOrGenerate: No pending topic found, but not all topics seem processed. Enabling generation.");
              enableGenerateBrief();
          }
     }
 
-
     function enableGenerateBrief() {
-        // Ensure this is only called when all topics are processed
         const allTopicsProcessed = topics.every(t => t.status === 'completed' || t.status === 'skipped');
         if (!allTopicsProcessed) {
             console.warn("Attempted to enable Generate Brief before all topics were processed.");
-            return; // Do not enable yet
+            return;
         }
         console.log("All topics processed. Enabling Generate Brief.");
         questionTextElement.textContent = 'All topics covered. Ready to generate the brief.';
@@ -259,60 +243,42 @@ document.addEventListener('DOMContentLoaded', () => {
         nextBtn.style.display = 'none';
         skipQuestionBtn.style.display = 'none';
         skipTopicBtn.style.display = 'none';
-        // Show the email input section instead of just the button
-        generateSection.style.display = 'block';
+        // Show the simple generate button
+        generateBriefBtn.style.display = 'inline-block';
         generateBriefBtn.disabled = false;
-        emailInput.focus(); // Focus the email input
     }
-
-    // Removed copyBriefToClipboard function
 
     // --- API Call Function ---
     async function callOpenAIProxy(payload) {
-        if (isLoading) return null; // Return null if already loading
+        if (isLoading) return null;
         isLoading = true;
-        let originalButtonStates = { // Store original states to restore
-             next: nextBtn.disabled,
-             skipQ: skipQuestionBtn.disabled,
-             skipT: skipTopicBtn.disabled,
-             gen: generateBriefBtn.disabled,
-             trans: translateRequestBtn.disabled
+        let originalButtonStates = {
+             next: nextBtn.disabled, skipQ: skipQuestionBtn.disabled, skipT: skipTopicBtn.disabled,
+             gen: generateBriefBtn.disabled, trans: translateRequestBtn.disabled
         };
-        // Disable all action buttons during API call
-        nextBtn.disabled = true;
-        skipQuestionBtn.disabled = true;
-        skipTopicBtn.disabled = true;
-        generateBriefBtn.disabled = true;
-        translateRequestBtn.disabled = true;
+        nextBtn.disabled = true; skipQuestionBtn.disabled = true; skipTopicBtn.disabled = true;
+        generateBriefBtn.disabled = true; translateRequestBtn.disabled = true;
 
-        // Specific loading indicators based on type
+        // Loading indicators
         if (payload.type === 'get_topic_question') {
-            // Keep previous question visible, just disable input
-            // questionTextElement.textContent = `Thinking about ${payload.topic}...`; // REMOVED
             answerInputElement.disabled = true;
         } else if (payload.type === 'check_topic_completion') {
-             // No specific text change, just button disabling
              console.log(`Checking completion for ${payload.topic}...`);
         } else if (payload.type === 'generate') {
-            briefOutputCode.textContent = 'Generating Brief... Please wait.';
+            briefOutputCode.textContent = 'Generating Brief... Please wait.'; // Use brief output area
         } else if (payload.type === 'translate') {
             translatedQuestionsCode.textContent = 'Translating...';
         }
 
         try {
-            // Use the renamed function endpoint
-            const functionEndpoint = '/.netlify/functions/generate-brief-email'; // Corrected endpoint name
+            const functionEndpoint = '/api/openai-proxy'; // Vercel endpoint
             const response = await fetch(functionEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
 
-            // Handle the 202 Accepted status for background function start
-            if (payload.type === 'generate' && response.status === 202) {
-                console.log("Background brief generation started.");
-                return { backgroundStarted: true }; // Special signal for background start
-            }
+            // No 202 handling needed for synchronous flow
 
             if (!response.ok) {
                 const errorData = await response.json();
@@ -320,35 +286,28 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await response.json();
-            return data.result; // For non-background calls (translate, get_question, check_completion)
+            return data.result;
 
         } catch (error) {
             console.error('Error calling OpenAI proxy:', error);
             alert(`Error: ${error.message}`);
-            // Reset specific loading indicators on error
-            if (payload.type === 'generate') briefStatusMessage.textContent = 'Brief generation request failed.';
+            // Reset loading indicators on error
+            if (payload.type === 'generate') briefOutputCode.textContent = 'Brief generation failed.';
             if (payload.type === 'translate') translatedQuestionsCode.textContent = 'Translation failed.';
-            // Reset specific loading indicators on error
-            if (payload.type === 'generate') briefStatusMessage.textContent = 'Brief generation request failed.';
-            if (payload.type === 'translate') translatedQuestionsCode.textContent = 'Translation failed.';
-            // If question/completion check failed, restore input but show error in question area
             if (payload.type.includes('question') || payload.type.includes('completion')) {
                  questionTextElement.textContent = 'An error occurred fetching the next step. Please try again.';
-                 answerInputElement.disabled = false; // Re-enable input on error
+                 answerInputElement.disabled = false;
             }
-            return null; // Indicate failure
+            return null;
         } finally {
             isLoading = false;
-            // Restore button states *unless* the flow dictates they should change
-            // (e.g., moving to generate brief) - this part is tricky,
-            // the calling functions should handle final state.
-            // For now, just re-enable based on stored state if they weren't meant to be disabled by flow.
+            // Restore button states carefully
              nextBtn.disabled = originalButtonStates.next;
              skipQuestionBtn.disabled = originalButtonStates.skipQ;
              skipTopicBtn.disabled = originalButtonStates.skipT;
-             generateBriefBtn.disabled = originalButtonStates.gen;
+             // Only re-enable generate if it was originally enabled (i.e., in generate state)
+             generateBriefBtn.disabled = (generateBriefBtn.style.display === 'none') ? true : originalButtonStates.gen;
              translateRequestBtn.disabled = originalButtonStates.trans;
-             // Ensure input is re-enabled if it was a question/completion check
              if (payload.type.includes('question') || payload.type.includes('completion')) {
                   answerInputElement.disabled = false;
              }
@@ -359,121 +318,86 @@ document.addEventListener('DOMContentLoaded', () => {
     startQuestionsBtn.addEventListener('click', async () => {
         const initialRequest = initialRequestInput.value.trim();
         if (initialRequest === '') {
-            alert('Please enter your initial request first.');
-            return;
+            alert('Please enter your initial request first.'); return;
         }
         if (isLoading) return;
 
-        initializeTopics(); // Set up topic list and states
+        initializeTopics();
         conversationHistory = [{ role: 'user', content: `Initial Request: ${initialRequest}` }];
 
         initialRequestSection.style.display = 'none';
         questionSection.style.display = 'block';
-        topicSidebar.style.display = 'flex'; // Show sidebar
-        skipQuestionBtn.style.display = 'inline-block'; // Show skip buttons
+        topicSidebar.style.display = 'flex';
+        skipQuestionBtn.style.display = 'inline-block';
         skipTopicBtn.style.display = 'inline-block';
 
-        const firstTopic = findNextTopic(); // Get and activate the first topic
+        const firstTopic = findNextTopic();
         if (firstTopic) {
-            // Display the seed question for the first topic
             displaySeedQuestion(firstTopic);
         } else {
-            // Should not happen with initial setup if TOPIC_DEFINITIONS is not empty
             console.error("Initialization error: No first topic found.");
-            // Enable generation as a fallback? Or show error?
-             questionTextElement.textContent = "Error initializing topics.";
-            // enableGenerateBrief();
+            questionTextElement.textContent = "Error initializing topics.";
         }
     });
 
-    nextBtn.addEventListener('click', () => {
-        // Handles submitting an answer to the current question (seed or AI-generated)
-        handleNextStep(false); // false = not skipped
-    });
-
-    skipQuestionBtn.addEventListener('click', () => {
-        // Handles skipping the current question
-        console.log("User skipped question:", currentAssistantQuestion);
-        handleNextStep(true); // true = skipped
-    });
+    nextBtn.addEventListener('click', () => { handleNextStep(false); });
+    skipQuestionBtn.addEventListener('click', () => { handleNextStep(true); });
 
     skipTopicBtn.addEventListener('click', async () => {
-        // Handles skipping the entire current topic
          if (isLoading || !currentTopic) return;
          console.log(`User skipping topic: ${currentTopic.name}`);
-         // Add a clear note to history about skipping the topic
          conversationHistory.push({ role: 'user', content: `User chose to skip the entire topic: ${currentTopic.name}` });
-         // Move directly to the next topic or generation phase, marking current as skipped
          await moveToNextTopicOrGenerate(currentTopic.id, 'skipped');
     });
 
-
     translateRequestBtn.addEventListener('click', async () => {
         const initialText = initialRequestInput.value.trim();
-        if (!initialText) {
-            alert('Please enter your initial request first.');
-            return;
-        }
+        if (!initialText) { alert('Please enter your initial request first.'); return; }
         if (isLoading) return;
 
         translationOutputDiv.style.display = 'block';
         translatedQuestionsCode.textContent = 'Translating...';
-
         const translation = await callOpenAIProxy({ type: 'translate', text: initialText });
-
-        if (translation) {
-            translatedQuestionsCode.textContent = translation;
-        } else {
-            translatedQuestionsCode.textContent = 'Translation failed.';
-        }
+        translatedQuestionsCode.textContent = translation || 'Translation failed.';
     });
 
     generateBriefBtn.addEventListener('click', async () => {
         if (isLoading) return;
 
-        const email = emailInput.value.trim();
-        // Basic email validation
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-             alert('Please enter a valid email address.');
-             emailInput.focus();
-             return;
-        }
-
-        console.log("Requesting brief generation for:", email);
+        console.log("Requesting brief generation...");
         console.log("Conversation History:", conversationHistory);
 
-        // Show status message area
         questionSection.style.display = 'none';
         topicSidebar.style.display = 'none';
         briefOutputSection.style.display = 'block';
-        briefStatusMessage.textContent = `Requesting brief generation for ${email}...`;
-        generateBriefBtn.disabled = true; // Disable button after click
+        briefOutputCode.textContent = 'Generating Brief... Please wait.';
+        generateBriefBtn.disabled = true;
 
-        // Call the background function
-        const response = await callOpenAIProxy({
+        const generatedBrief = await callOpenAIProxy({
             type: 'generate',
-            history: conversationHistory,
-            emailAddress: email // Send email address to backend
+            history: conversationHistory
         });
 
-        // Check for the special signal indicating background start
-        if (response && response.backgroundStarted) {
-            briefStatusMessage.textContent = `Brief generation started. It will be emailed to ${email} shortly.`;
+        if (generatedBrief) {
+            briefOutputCode.textContent = generatedBrief;
+            copyBriefBtn.disabled = false; // Enable copy button
         } else {
-            // Handle potential errors if the background function didn't start correctly
-            briefStatusMessage.textContent = 'There was an issue starting the brief generation. Please try again later.';
-            // Re-enable button on immediate failure?
-            generateBriefBtn.disabled = false;
+            briefOutputCode.textContent = 'Brief generation failed.';
+            copyBriefBtn.disabled = true; // Keep copy disabled on failure
         }
+        // Re-enable generate button? Or assume one generation per session? For now, keep disabled.
+        // generateBriefBtn.disabled = false;
     });
 
-    // Removed copyBriefBtn listener
+    // Re-add copyBriefBtn listener
+    copyBriefBtn.addEventListener('click', copyBriefToClipboard);
 
     // --- Initial Setup ---
     questionSection.style.display = 'none';
     briefOutputSection.style.display = 'none';
     translationOutputDiv.style.display = 'none';
-    generateSection.style.display = 'none'; // Hide email input initially
+    generateBriefBtn.style.display = 'none'; // Hide generate button initially
+    copyBriefBtn.disabled = true; // Disable copy initially
     topicSidebar.style.display = 'none';
     skipQuestionBtn.style.display = 'none';
     skipTopicBtn.style.display = 'none';
