@@ -97,6 +97,7 @@ body {
 .content-container {
     flex-grow: 1; /* Allow content to take remaining space */
     padding: 30px;
+    min-width: 500px; /* Prevent content area from becoming too narrow */
     /* background-color: #fff; - Inherited from main-container */
 }
 

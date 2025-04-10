@@ -33,15 +33,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Constants ---
     const TOPIC_DEFINITIONS = [
-        { id: 'business_context', name: "Business Context" },
-        { id: 'current_understanding', name: "Current Understanding" },
-        { id: 'audience_definition', name: "Audience Definition" },
-        { id: 'success_metrics', name: "Success Metrics" },
-        { id: 'timeline_constraints', name: "Timeline & Constraints" },
-        { id: 'previous_research', name: "Previous Research & Gaps" },
-        { id: 'stakeholders_distribution', name: "Stakeholders & Distribution" }
+        { id: 'business_context', name: "Business Context", seed: "Let's start with the business context. What specific business challenge or opportunity are you trying to address with this project?" },
+        { id: 'current_understanding', name: "Current Understanding", seed: "Moving on to what's already known. What do you already understand about this topic or audience?" },
+        { id: 'audience_definition', name: "Audience Definition", seed: "Now, let's define the audience. Who specifically are you trying to understand better (demographics, behaviors, etc.)?" },
+        { id: 'success_metrics', name: "Success Metrics", seed: "Thinking about outcomes, how will you measure the success of this research or strategy work?" },
+        { id: 'timeline_constraints', name: "Timeline & Constraints", seed: "What are the practical constraints? Please describe the timeline and any budget limitations." },
+        { id: 'previous_research', name: "Previous Research & Gaps", seed: "Has any previous research been done on this? If so, what was learned, and what gaps remain?" },
+        { id: 'stakeholders_distribution', name: "Stakeholders & Distribution", seed: "Finally, who will use these insights, and what format would be most useful for them?" }
     ];
-    const COMPLETION_SIGNAL = "COMPLETION_SIGNAL"; // Matches backend signal
+    // Removed COMPLETION_SIGNAL constant as it's handled by backend YES/NO check
 
     // --- Functions ---
 
@@ -90,23 +90,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function getFirstQuestionForTopic(topic) {
-         if (!topic) return null;
-         questionTextElement.textContent = `Thinking about ${topic.name}...`;
-         answerInputElement.value = '';
-         answerInputElement.disabled = true;
-         nextBtn.disabled = true;
-         skipQuestionBtn.disabled = true;
-         skipTopicBtn.disabled = true;
-
-         const question = await callOpenAIProxy({
-             type: 'get_topic_question',
-             topic: topic.id,
-             history: conversationHistory,
-             is_first_question: true // Signal it's the first for this topic
-         });
-
-         handleNewQuestionResponse(question);
+    // Function to display the seed question for a topic
+    function displaySeedQuestion(topic) {
+        if (!topic || !topic.seed) {
+            console.error("Cannot display seed question for topic:", topic);
+            questionTextElement.textContent = "Error: Could not load the first question for this topic.";
+            // Disable inputs/buttons? Or allow skipping?
+            answerInputElement.disabled = true;
+            nextBtn.disabled = true;
+            skipQuestionBtn.disabled = true;
+            skipTopicBtn.disabled = false; // Allow skipping the broken topic
+            return;
+        }
+        console.log(`Displaying seed question for: ${topic.name}`);
+        questionTextElement.textContent = topic.seed;
+        currentAssistantQuestion = topic.seed; // Store the seed question
+        conversationHistory.push({ role: 'assistant', content: topic.seed }); // Add seed question to history
+        answerInputElement.value = '';
+        answerInputElement.disabled = false;
+        nextBtn.disabled = false;
+        skipQuestionBtn.disabled = false;
+        skipTopicBtn.disabled = false;
+        answerInputElement.focus();
     }
 
      async function getNextQuestionForTopic(topic) {
@@ -194,25 +199,45 @@ document.addEventListener('DOMContentLoaded', () => {
             moveToNextTopicOrGenerate(currentTopic.id, 'completed');
         } else {
             // If topic not complete, get another question for the same topic
+            // If topic not complete, get the next AI-generated question for the same topic
             await getNextQuestionForTopic(currentTopic);
         }
     }
 
     async function moveToNextTopicOrGenerate(currentTopicId, statusToSet) {
-         updateTopicStatus(currentTopicId, statusToSet);
+         updateTopicStatus(currentTopicId, statusToSet); // Mark current as done/skipped
+
+         // Check if ALL topics are now done or skipped
+         const allTopicsProcessed = topics.every(t => t.status === 'completed' || t.status === 'skipped');
+
+         if (allTopicsProcessed) {
+             enableGenerateBrief();
+             return; // Exit early, no next topic to find
+         }
+
+         // Find the next topic that is still pending
          const nextTopic = findNextTopic(); // Sets the new currentTopic and marks it active
 
          if (nextTopic) {
-             // Start the new topic
-             await getFirstQuestionForTopic(nextTopic);
+             // Start the new topic with its seed question
+             displaySeedQuestion(nextTopic);
          } else {
-             // All topics done (completed or skipped)
+             // This case should ideally be caught by allTopicsProcessed check above,
+             // but as a fallback, enable generation.
+             console.warn("moveToNextTopicOrGenerate: No pending topic found, but not all topics seem processed. Enabling generation.");
              enableGenerateBrief();
          }
     }
 
 
     function enableGenerateBrief() {
+        // Ensure this is only called when all topics are processed
+        const allTopicsProcessed = topics.every(t => t.status === 'completed' || t.status === 'skipped');
+        if (!allTopicsProcessed) {
+            console.warn("Attempted to enable Generate Brief before all topics were processed.");
+            return; // Do not enable yet
+        }
+        console.log("All topics processed. Enabling Generate Brief.");
         questionTextElement.textContent = 'All topics covered. Ready to generate the brief.';
         answerInputElement.disabled = true;
         nextBtn.style.display = 'none';
@@ -331,25 +356,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const firstTopic = findNextTopic(); // Get and activate the first topic
         if (firstTopic) {
-            await getFirstQuestionForTopic(firstTopic);
+            // Display the seed question for the first topic
+            displaySeedQuestion(firstTopic);
         } else {
-            // Should not happen with initial setup
-            enableGenerateBrief();
+            // Should not happen with initial setup if TOPIC_DEFINITIONS is not empty
+            console.error("Initialization error: No first topic found.");
+            // Enable generation as a fallback? Or show error?
+             questionTextElement.textContent = "Error initializing topics.";
+            // enableGenerateBrief();
         }
     });
 
     nextBtn.addEventListener('click', () => {
-        handleNextStep(false); // False indicates question was not skipped
+        // Handles submitting an answer to the current question (seed or AI-generated)
+        handleNextStep(false); // false = not skipped
     });
 
     skipQuestionBtn.addEventListener('click', () => {
-        handleNextStep(true); // True indicates question was skipped
+        // Handles skipping the current question
+        console.log("User skipped question:", currentAssistantQuestion);
+        handleNextStep(true); // true = skipped
     });
 
     skipTopicBtn.addEventListener('click', async () => {
+        // Handles skipping the entire current topic
          if (isLoading || !currentTopic) return;
-         console.log(`Skipping topic: ${currentTopic.name}`);
-         conversationHistory.push({ role: 'user', content: `User skipped topic: ${currentTopic.name}` });
+         console.log(`User skipping topic: ${currentTopic.name}`);
+         // Add a clear note to history about skipping the topic
+         conversationHistory.push({ role: 'user', content: `User chose to skip the entire topic: ${currentTopic.name}` });
+         // Move directly to the next topic or generation phase, marking current as skipped
          await moveToNextTopicOrGenerate(currentTopic.id, 'skipped');
     });
 
