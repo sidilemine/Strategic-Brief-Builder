@@ -567,7 +567,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (generatedBrief) {
             briefOutputCode.textContent = generatedBrief;
             copyBriefBtn.disabled = false;
-            downloadDocxBtn.disabled = false; // Enable download button
+            // Only enable download if library is loaded
+            if (typeof htmlDocx !== 'undefined') {
+                 downloadDocxBtn.disabled = false;
+            } else {
+                 console.warn("html-to-docx library not ready when brief generated.");
+                 // Keep button disabled, maybe add a tooltip or message later if needed
+                 downloadDocxBtn.disabled = true;
+            }
         } else {
             briefOutputCode.textContent = 'Brief generation failed.';
             copyBriefBtn.disabled = true;
