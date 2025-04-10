@@ -182,14 +182,29 @@ button:disabled {
 /* Removed progress indicator styles */
 
 
-.navigation-buttons {
+.answer-actions {
+    margin-top: 10px; /* Space above buttons */
+    display: flex;
+    flex-direction: column; /* Stack buttons vertically */
+    align-items: flex-end; /* Align buttons to the right */
 }
 
-.navigation-buttons {
+.answer-actions .skip-button {
+    margin-top: 5px; /* Space between skip and submit */
+    margin-right: 0; /* Remove default right margin */
+}
+
+.answer-actions #next-btn {
+     margin-right: 0; /* Remove default right margin */
+}
+
+
+/* Keep .navigation-buttons for potential future use or remove if completely unused */
+/* .navigation-buttons {
     margin-top: 20px;
     display: flex;
     justify-content: space-between;
-}
+} */
 
 .output-section {
     margin-top: 30px;
@@ -248,22 +263,28 @@ code {
      h1 {
         font-size: 1.8em;
     }
-    h2 {
+     h2 {
         font-size: 1.3em;
     }
-    button {
+     button {
         padding: 8px 15px;
         font-size: 0.9em;
     }
-     .navigation-buttons {
-        /* Keep flex-direction column for buttons on small screens */
-        flex-direction: column;
+    /* Corrected styles for answer-actions within media query */
+     .answer-actions {
+        align-items: stretch; /* Make buttons full width on mobile */
     }
-    .navigation-buttons button {
+     .answer-actions button {
         width: 100%;
         margin-bottom: 10px;
     }
-     .navigation-buttons button:last-child {
+     .answer-actions button:last-child {
         margin-bottom: 0;
     }
+    /* Ensure generate button also behaves on mobile if needed, though it might be hidden */
+     #generate-brief-btn {
+         float: none; /* Remove float on mobile */
+         width: 100%;
+         margin-top: 15px;
+     }
 }

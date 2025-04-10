@@ -38,15 +38,15 @@
             <div id="question-display">
                 <p id="question-text">Loading first question...</p>
                 <textarea id="answer-input" rows="4"></textarea>
+                <!-- Moved buttons below textarea -->
+                <div class="answer-actions">
+                     <button id="skip-question-btn" class="skip-button" style="display: none;">I don't know / Skip Question</button>
+                     <button id="next-btn">Submit Answer</button>
+                </div>
             </div>
-            </div>
-            </div>
-            <div class="navigation-buttons">
-                <button id="skip-question-btn" class="skip-button" style="display: none;">I don't know / Skip Question</button>
-                <button id="next-btn">Submit Answer</button>
-                <!-- Reverted Generate button area -->
-                <button id="generate-brief-btn" style="display: none;">Generate Brief</button>
-            </div>
+            <!-- Removed duplicate closing divs -->
+            <!-- Generate button remains separate, controlled by JS -->
+            <button id="generate-brief-btn" style="display: none; float: right; margin-top: 20px;">Generate Brief</button>
         </div>
 
         <div id="brief-output-section" class="output-section" style="display: none;">

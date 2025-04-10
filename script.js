@@ -382,7 +382,32 @@ document.addEventListener('DOMContentLoaded', () => {
         translationOutputDiv.style.display = 'block';
         translatedQuestionsCode.textContent = 'Translating...';
         const translation = await callOpenAIProxy({ type: 'translate', text: initialText });
-        translatedQuestionsCode.textContent = translation || 'Translation failed.';
+
+        // --- MODIFICATION START: Clickable Translations ---
+        if (translation) {
+            const lines = translation.split('\n').filter(line => line.trim() !== '');
+            translatedQuestionsCode.innerHTML = ''; // Clear previous content
+
+            lines.forEach(line => {
+                const span = document.createElement('span');
+                span.textContent = line;
+                span.style.display = 'block'; // Ensure each is on a new line
+                span.style.cursor = 'pointer';
+                span.style.textDecoration = 'underline';
+                span.style.color = '#3498db'; // Make it look like a link
+                span.addEventListener('click', () => {
+                    // Remove leading hyphen/bullet if present
+                    const questionText = line.replace(/^[\s*-]+\s*/, '');
+                    initialRequestInput.value = questionText; // Set as initial request
+                    initialRequestInput.focus(); // Focus the input box
+                    translationOutputDiv.style.display = 'none'; // Hide suggestions after click
+                });
+                translatedQuestionsCode.appendChild(span);
+            });
+        } else {
+            translatedQuestionsCode.textContent = 'Translation failed.';
+        }
+        // --- MODIFICATION END ---
     });
 
     generateBriefBtn.addEventListener('click', async () => {
