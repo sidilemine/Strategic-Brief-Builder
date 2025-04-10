@@ -197,6 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (index === questions.length - 1) {
                 nextBtn.style.display = 'none';
                 generateBriefBtn.style.display = 'inline-block';
+                generateBriefBtn.disabled = false; // Explicitly enable the button
             } else {
                 nextBtn.style.display = 'inline-block';
                 generateBriefBtn.style.display = 'none';
