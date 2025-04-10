@@ -17,7 +17,7 @@ if (!apiKey) {
 const openai = apiKey ? new OpenAI({ apiKey }) : null;
 
 // --- Constants ---
-const COMPLETION_SIGNAL = "COMPLETION_SIGNAL"; // Signal that no more questions are needed
+// Removed COMPLETION_SIGNAL as completion is now checked per topic
 
 // --- Helper Functions ---
 
@@ -113,45 +113,58 @@ Translation:
 `; // The AI should start generating the questions right after this line.
 }
 
-// Construct the prompt for getting the next question
-function constructNextQuestionPrompt(history) {
-    // Define the core areas a strategic brief needs
-    const briefSections = [
-        "Business Context (Challenge/Opportunity, Broader Objectives)",
-        "Current Understanding (Existing Knowledge, Assumptions)",
-        "Audience Definition (Target Audience, Key Segments)",
-        "Success Metrics (Measurement, Decision Impact)",
-        "Timeline and Constraints (Budget, Deadlines, Limitations)",
-        "Previous Research & Knowledge Gaps",
-        "Stakeholders & Insight Format/Distribution"
-    ];
-
-    // Format history for the prompt
-    const historyString = history.map(turn =>
+// Construct prompt to get a question for a specific topic
+function constructTopicQuestionPrompt(topicId, history, isFirstQuestion) {
+     const historyString = history.map(turn =>
         `${turn.role === 'user' ? 'User' : 'Assistant'}: ${turn.content}`
     ).join('\n');
 
-    return `
-You are an AI assistant guiding a user through building a strategic research brief.
-Your goal is to ask clarifying questions one by one until all necessary information for a standard brief is gathered.
+    const firstOrNext = isFirstQuestion ? "first" : "next relevant";
 
-**Standard Brief Sections to Cover:**
-${briefSections.map(s => `- ${s}`).join('\n')}
+    return `
+You are an AI assistant guiding a user through building a strategic research brief, focusing specifically on the topic: **${topicId.replace(/_/g, ' ')}**.
 
 **Conversation History So Far:**
 ${historyString}
 
 **Instructions:**
-1. Analyze the conversation history.
-2. Identify which standard brief sections still lack sufficient detail based *only* on the history provided.
-3. If crucial information is missing, formulate the *single best, most natural next question* to ask the user to gather that information. The question should be open-ended and conversational.
-4. If you determine that all standard brief sections have been reasonably covered based on the conversation history, respond with the exact text: ${COMPLETION_SIGNAL}
-5. Do NOT ask multiple questions at once. Only provide the single next question OR the completion signal.
-6. Do not add any introductory text like "Okay, the next question is:". Just provide the question itself or the completion signal.
+1. Review the conversation history provided.
+2. Formulate the single ${firstOrNext}, open-ended, conversational question to ask the user specifically about the **${topicId.replace(/_/g, ' ')}** topic, considering what has already been discussed.
+3. If asking the first question for the topic, make it a good starting point for that topic.
+4. If asking a subsequent question, ensure it logically follows the previous answer and aims to gather more detail *for this specific topic*.
+5. Do NOT ask about other topics.
+6. Do NOT add introductory text like "Okay, the next question is:". Just provide the question itself.
 
-**Next Question or Completion Signal:**
+**Question about ${topicId.replace(/_/g, ' ')}:**
 `; // AI response starts here
 }
+
+// Construct prompt to check if a topic is sufficiently covered
+function constructTopicCompletionCheckPrompt(topicId, history) {
+    const historyString = history.map(turn =>
+        `${turn.role === 'user' ? 'User' : 'Assistant'}: ${turn.content}`
+    ).join('\n');
+
+    return `
+You are an AI assistant evaluating conversation history for completeness regarding a specific topic for a strategic brief.
+
+**Topic to Evaluate:** ${topicId.replace(/_/g, ' ')}
+
+**Conversation History:**
+${historyString}
+
+**Instructions:**
+1. Analyze the *entire* conversation history provided, paying close attention to the user's inputs related to the topic **${topicId.replace(/_/g, ' ')}**. Consider if the user explicitly skipped questions or the topic.
+2. Determine if the **${topicId.replace(/_/g, ' ')}** topic has been sufficiently covered to write a basic section in a strategic brief. It doesn't need exhaustive detail, just the core information.
+3. Respond with only the word "YES" if the topic is sufficiently covered or was skipped.
+4. Respond with only the word "NO" if more information is clearly needed for this topic based on the history.
+
+**Is the topic "${topicId.replace(/_/g, ' ')}" sufficiently covered (YES/NO)?**
+`; // AI response starts here
+}
+
+// constructBriefPrompt remains largely the same, using history.
+// constructTranslatePrompt remains the same.
 
 
 // --- Netlify Function Handler ---
@@ -171,26 +184,32 @@ exports.handler = async (event) => {
 
     try {
         const body = JSON.parse(event.body);
-        // Updated payload structure: type is mandatory, others depend on type
-        const { type, history, text } = body;
+        // Updated payload structure for topic-driven flow
+        const { type, history, text, topic, is_first_question } = body;
 
         let prompt;
-        let model = "gpt-3.5-turbo"; // Default model, can be overridden
+        let model = "gpt-3.5-turbo"; // Default model
+        let temperature = 0.5; // Default temperature
 
-        if (type === 'get_next_question' && history) {
-            prompt = constructNextQuestionPrompt(history);
-            // Use a faster model for potentially quicker turn-around on questions
-            model = "gpt-3.5-turbo";
+        if (type === 'get_topic_question' && topic && history !== undefined) {
+            prompt = constructTopicQuestionPrompt(topic, history, is_first_question);
+            model = "gpt-3.5-turbo"; // Keep question generation fast
+            temperature = 0.7; // Allow a bit more creativity in question phrasing
+        } else if (type === 'check_topic_completion' && topic && history !== undefined) {
+            prompt = constructTopicCompletionCheckPrompt(topic, history);
+            model = "gpt-3.5-turbo"; // Simple YES/NO check
+            temperature = 0.1; // Be very deterministic for YES/NO
         } else if (type === 'generate' && history) {
-            prompt = constructBriefPrompt(history);
-            // Use a more powerful model for better synthesis in brief generation
-            model = "gpt-4"; // Or "gpt-4-turbo" etc.
+            prompt = constructBriefPrompt(history); // Uses full history
+            model = "gpt-4"; // Use powerful model for final synthesis
+            temperature = 0.5;
         } else if (type === 'translate' && text) {
             prompt = constructTranslatePrompt(text);
             model = "gpt-3.5-turbo";
+            temperature = 0.5;
         } else {
-            console.error("Invalid request payload:", body);
-            return { statusCode: 400, body: JSON.stringify({ error: 'Invalid request payload or missing required fields for the type' }) };
+            console.error("Invalid request payload or missing fields:", body);
+            return { statusCode: 400, body: JSON.stringify({ error: 'Invalid request payload or missing required fields for the specified type' }) };
         }
 
         if (!prompt) {
@@ -198,23 +217,30 @@ exports.handler = async (event) => {
              return { statusCode: 500, body: JSON.stringify({ error: 'Internal server error: Could not construct prompt' }) };
         }
 
-        console.log(`Calling OpenAI API (Type: ${type}, Model: ${model})...`);
+        console.log(`Calling OpenAI API (Type: ${type}, Model: ${model}, Temp: ${temperature})...`);
 
         const completion = await openai.chat.completions.create({
             messages: [{ role: 'user', content: prompt }],
             model: model,
-            temperature: 0.5, // Slightly lower temperature for more focused questions/briefs
-            // Consider adding max_tokens if needed, especially for brief generation
+            temperature: temperature,
+            // max_tokens: type === 'generate' ? 1500 : 200, // Example: More tokens for generation
         });
 
         console.log("OpenAI API call successful.");
 
         let result = completion.choices[0]?.message?.content?.trim();
 
-        // Clean up potential artifacts if the model doesn't perfectly follow instructions
-        if (type === 'get_next_question' && result && result !== COMPLETION_SIGNAL) {
-            // Remove potential leading/trailing quotes or labels
-             result = result.replace(/^["']?(Next Question:|Question:)?\s*/i, '').replace(/["']?$/, '');
+        // Clean up potential artifacts
+        if (type === 'get_topic_question' && result) {
+             result = result.replace(/^["']?(Question:|Next Question:)?\s*/i, '').replace(/["']?$/, '');
+        } else if (type === 'check_topic_completion' && result) {
+             // Ensure only YES or NO is returned
+             if (result.toUpperCase() !== 'YES' && result.toUpperCase() !== 'NO') {
+                 console.warn(`Unexpected completion check result: "${result}". Defaulting to NO.`);
+                 result = 'NO'; // Default to NO if unexpected output
+             } else {
+                 result = result.toUpperCase(); // Standardize to uppercase
+             }
         }
 
         if (!result) {

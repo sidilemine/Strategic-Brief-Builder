@@ -7,10 +7,18 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <h1>Strategic Brief Builder</h1>
+    <div class="main-container">
+        <div id="topic-sidebar">
+            <h2>Brief Topics</h2>
+            <ul id="topic-list">
+                <!-- Topics will be populated by JS -->
+            </ul>
+            <button id="skip-topic-btn" class="skip-button" style="display: none;">Skip Current Topic</button>
+        </div>
+        <div class="content-container">
+            <h1>Strategic Brief Builder</h1>
 
-        <div id="initial-request-section">
+            <div id="initial-request-section">
             <h2>1. Initial Request</h2>
             <p>Describe your strategic need or challenge:</p>
             <textarea id="initial-request" rows="4" placeholder="e.g., We want to understand why Gen Z isn't engaging with our brand..."></textarea>
@@ -28,8 +36,10 @@
                 <p id="question-text">Loading first question...</p>
                 <textarea id="answer-input" rows="4"></textarea>
             </div>
+            </div>
             <div class="navigation-buttons">
-                <button id="next-btn">Submit Answer & Next Question</button>
+                <button id="skip-question-btn" class="skip-button" style="display: none;">I don't know / Skip Question</button>
+                <button id="next-btn">Submit Answer</button> <!-- Text changed -->
                 <button id="generate-brief-btn" style="display: none;">Generate Brief</button>
             </div>
         </div>
@@ -39,6 +49,7 @@
             <pre><code id="brief-output"></code></pre>
             <button id="copy-brief-btn">Copy Brief</button>
             <p id="copy-status" style="display: none; color: green;">Brief copied to clipboard!</p>
+        </div>
         </div>
     </div>
 
