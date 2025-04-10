@@ -101,7 +101,13 @@ module.exports = async (req, res) => {
 
         if (!prompt) {
              console.error("Failed to construct prompt for payload:", req.body);
-             return res.status(500).json({ error: 'Internal server error: Could not construct prompt' });
+              return res.status(500).json({ error: 'Internal server error: Could not construct prompt' });
+         }
+
+        // Explicit check for initialized OpenAI client before use
+        if (!openai) {
+             console.error("OpenAI client is not initialized. Check OPENAI_API_KEY environment variable.");
+             return res.status(500).json({ error: "Server configuration error: OpenAI client not available." });
         }
 
         console.log(`Calling OpenAI API (Type: ${type}, Model: ${model}, Temp: ${temperature})...`);
