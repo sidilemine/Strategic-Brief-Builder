@@ -10,12 +10,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const translationOutputDiv = document.getElementById('translation-output');
     const translatedQuestionsCode = document.getElementById('translated-questions');
 
-    const progressBar = document.getElementById('progress-bar');
-    const progressText = document.getElementById('progress-text');
+    // Removed progress bar elements
     const questionTextElement = document.getElementById('question-text');
     const answerInputElement = document.getElementById('answer-input');
 
-    const backBtn = document.getElementById('back-btn');
+    // Removed backBtn
     const nextBtn = document.getElementById('next-btn');
     const generateBriefBtn = document.getElementById('generate-brief-btn');
 
@@ -24,98 +23,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const copyStatus = document.getElementById('copy-status');
 
     // --- State ---
-    let currentQuestionIndex = 0;
+    // Removed currentQuestionIndex, userAnswers (replaced by history)
     let isLoading = false; // To prevent multiple API calls
-    const userAnswers = {}; // Store answers keyed by question index and initial request
-
-    // --- Questions ---
-    // Based on the prompt, structured for easy access
-    const questions = [
-        // Business Context
-        { id: 'business_challenge', text: "What specific business challenge or opportunity are you trying to address?" },
-        { id: 'business_objectives', text: "Where does this project fit within your broader business objectives?" },
-        // Current Understanding
-        { id: 'current_knowledge', text: "What do you already know about this topic/audience?" },
-        { id: 'assumptions', text: "What assumptions are you making that you'd like to verify?" },
-        // Audience Definition
-        { id: 'audience_definition', text: "Who specifically are you trying to understand better? Please describe demographics, psychographics, behaviors, etc." },
-        { id: 'audience_segments', text: "Are there any specific segments within this audience that are particularly important?" },
-        // Success Metrics
-        { id: 'success_metrics', text: "How will you measure the success of this research or strategy work?" },
-        { id: 'decision_making', text: "What decisions will be made based on these insights?" },
-        // Timeline and Constraints
-        { id: 'timeline', text: "What is your timeline for this project?" },
-        { id: 'constraints', text: "Are there any budget constraints or other limitations we should be aware of?" },
-        // Previous Research
-        { id: 'previous_research', text: "Have you conducted any previous research on this topic? If yes, what did you learn?" },
-        { id: 'knowledge_gaps', text: "What gaps remain in your understanding?" },
-        // Stakeholders
-        { id: 'stakeholders', text: "Who will be using these insights within your organization?" },
-        { id: 'insight_format', text: "What format would be most useful for sharing these insights internally?" }
-    ];
+    let conversationHistory = []; // Stores { role: 'user'/'assistant', content: '...' }
+    let currentAssistantQuestion = null; // Store the latest question from the assistant
 
     // --- Functions ---
 
-    // Helper to get answer by question ID, using the index from the questions array
-    function getAnswerById(id) {
-        const index = questions.findIndex(q => q.id === id);
-        return userAnswers[index] || 'N/A';
-    }
-
-    function generatePlaceholderBrief() {
-        // Use the initial request stored earlier
-        const initialRequest = userAnswers['initial_request'] || 'N/A';
-        // Generate a simple title based on the initial request (can be improved)
-        const projectTitle = initialRequest.substring(0, 30) + (initialRequest.length > 30 ? '...' : '');
-
-        const briefContent = `
-# Strategic Brief: ${projectTitle}
-
-## Business Context
-- **Challenge/Opportunity:** ${getAnswerById('business_challenge')}
-- **Broader Objectives:** ${getAnswerById('business_objectives')}
-
-## Project Objectives
-- **Primary Objective:** [Synthesized from answers - Placeholder]
-- **Secondary Objectives:** [Synthesized from answers - Placeholder]
-- **Expected Business Outcomes:** [Synthesized from answers - Placeholder]
-
-## Target Audience
-- **Definition:** ${getAnswerById('audience_definition')}
-- **Key Segments:** ${getAnswerById('audience_segments')}
-
-## Key Questions to Explore
-- [Generated/Synthesized Question 1 - Placeholder]
-- [Generated/Synthesized Question 2 - Placeholder]
-- [Generated/Synthesized Question 3 - Placeholder]
-- **Initial Request:** ${initialRequest}
-
-## Current Knowledge & Gaps
-- **Known:** ${getAnswerById('current_knowledge')}
-- **Assumptions:** ${getAnswerById('assumptions')}
-- **Gaps:** ${getAnswerById('knowledge_gaps')}
-
-## Success Metrics
-- **Measurement:** ${getAnswerById('success_metrics')}
-- **Decisions:** ${getAnswerById('decision_making')}
-
-## Timeline & Deliverables
-- **Timeline:** ${getAnswerById('timeline')}
-- **Constraints:** ${getAnswerById('constraints')}
-- **Deliverable Format:** ${getAnswerById('insight_format')}
-
-## Stakeholders & Distribution
-- **Users:** ${getAnswerById('stakeholders')}
-- **Distribution Format:** ${getAnswerById('insight_format')}
-
-## Methodological Considerations
-- [Suggested approaches - Placeholder based on context]
-- **Previous Research:** ${getAnswerById('previous_research')}
-        `.trim(); // Trim leading/trailing whitespace
-
-        briefOutputCode.textContent = briefContent;
-        briefOutputSection.style.display = 'block'; // Ensure the section is visible
-    }
+    // Removed getAnswerById, generatePlaceholderBrief (will rely on LLM)
 
     function copyBriefToClipboard() {
         const briefText = briefOutputCode.textContent;
@@ -141,13 +56,28 @@ document.addEventListener('DOMContentLoaded', () => {
         translatedQuestionsCode.textContent = 'Translating... Please wait.'; // Loading indicator for translation
 
         try {
+            // Show loading state more specifically
+            if (payload.type === 'get_next_question') {
+                 questionTextElement.textContent = 'Thinking of the next question...';
+                 answerInputElement.value = ''; // Clear input for next question
+                 answerInputElement.disabled = true; // Disable input while loading
+                 nextBtn.disabled = true;
+            } else if (payload.type === 'generate') {
+                 briefOutputCode.textContent = 'Generating Brief... Please wait.';
+                 generateBriefBtn.disabled = true;
+            } else if (payload.type === 'translate') {
+                 translatedQuestionsCode.textContent = 'Translating...';
+                 translateRequestBtn.disabled = true;
+            }
+
+
             const response = await fetch('/.netlify/functions/openai-proxy', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                // Send the questions array along with other data
-                body: JSON.stringify({ ...payload, questions: questions }),
+                // Send the relevant payload (history, text, etc.)
+                body: JSON.stringify(payload),
             });
 
             if (!response.ok) {
@@ -169,77 +99,101 @@ document.addEventListener('DOMContentLoaded', () => {
             isLoading = false;
             // Re-enable buttons
             translateRequestBtn.disabled = false;
-            // generateBriefBtn might stay hidden depending on flow, re-enable if needed
-             if (generateBriefBtn.style.display !== 'none') {
-                 generateBriefBtn.disabled = false;
-             }
+            // Reset loading state
+            answerInputElement.disabled = false;
+            nextBtn.disabled = false;
+            generateBriefBtn.disabled = false; // Re-enable if it was visible
+            translateRequestBtn.disabled = false;
         }
     }
 
-
-    function updateProgress() {
-        const progressPercentage = Math.round(((currentQuestionIndex + 1) / questions.length) * 100);
-        progressBar.value = progressPercentage;
-        progressText.textContent = `${progressPercentage}%`;
-    }
-
-    function displayQuestion(index) {
-        if (index >= 0 && index < questions.length) {
-            questionTextElement.textContent = questions[index].text;
-            // Load saved answer if exists
-            answerInputElement.value = userAnswers[index] || '';
-            updateProgress();
-
-            // Enable/disable back button
-            backBtn.disabled = index === 0;
-
-            // Change Next button text/visibility on the last question
-            if (index === questions.length - 1) {
-                nextBtn.style.display = 'none';
-                generateBriefBtn.style.display = 'inline-block';
-                generateBriefBtn.disabled = false; // Explicitly enable the button
-            } else {
-                nextBtn.style.display = 'inline-block';
-                generateBriefBtn.style.display = 'none';
-            }
-        }
-    }
-
-    function saveAnswer() {
-        // Save answer using the index as the key
-        if (currentQuestionIndex >= 0 && currentQuestionIndex < questions.length) {
-            userAnswers[currentQuestionIndex] = answerInputElement.value.trim();
-        }
-    }
+    // Removed updateProgress, displayQuestion, saveAnswer (logic integrated elsewhere)
 
     // --- Event Listeners ---
-    startQuestionsBtn.addEventListener('click', () => {
-        if (initialRequestInput.value.trim() === '') {
+    startQuestionsBtn.addEventListener('click', async () => {
+        const initialRequest = initialRequestInput.value.trim();
+        if (initialRequest === '') {
             alert('Please enter your initial request first.');
             return;
         }
-        userAnswers['initial_request'] = initialRequestInput.value.trim(); // Store initial request
+        if (isLoading) return;
+
+        // Initialize conversation history with the user's initial request
+        conversationHistory = [{ role: 'user', content: `Initial Request: ${initialRequest}` }];
+
         initialRequestSection.style.display = 'none';
         questionSection.style.display = 'block';
-        currentQuestionIndex = 0;
-        displayQuestion(currentQuestionIndex);
-    });
+        questionTextElement.textContent = 'Getting first question...'; // Loading state
+        answerInputElement.value = '';
+        answerInputElement.disabled = true;
+        nextBtn.disabled = true;
 
-    nextBtn.addEventListener('click', () => {
-        saveAnswer();
-        if (currentQuestionIndex < questions.length - 1) {
-            currentQuestionIndex++;
-            displayQuestion(currentQuestionIndex);
+        // Fetch the first question from the AI
+        const firstQuestion = await callOpenAIProxy({
+            type: 'get_next_question',
+            history: conversationHistory
+        });
+
+        if (firstQuestion && firstQuestion !== 'COMPLETION_SIGNAL') {
+            questionTextElement.textContent = firstQuestion;
+            currentAssistantQuestion = firstQuestion; // Store the question
+            conversationHistory.push({ role: 'assistant', content: firstQuestion }); // Add AI question to history
+            answerInputElement.disabled = false; // Enable input for user
+            nextBtn.disabled = false;
+            answerInputElement.focus();
+        } else if (firstQuestion === 'COMPLETION_SIGNAL') {
+            // Handle immediate completion (unlikely but possible)
+            questionTextElement.textContent = 'All information gathered.';
+            nextBtn.style.display = 'none';
+            generateBriefBtn.style.display = 'inline-block';
+            generateBriefBtn.disabled = false;
+            answerInputElement.disabled = true;
+        } else {
+            questionTextElement.textContent = 'Failed to get the first question. Please try again.';
+            // Optionally revert UI state
         }
     });
 
-    backBtn.addEventListener('click', () => {
-        saveAnswer(); // Save current answer before going back
-        if (currentQuestionIndex > 0) {
-            currentQuestionIndex--;
-            displayQuestion(currentQuestionIndex);
+    nextBtn.addEventListener('click', async () => {
+        const currentAnswer = answerInputElement.value.trim();
+        if (currentAnswer === '') {
+            alert('Please provide an answer.');
+            return;
+        }
+        if (isLoading) return;
+
+        // Add user's answer to history
+        // We assume the last item in history is the question they are answering
+        conversationHistory.push({ role: 'user', content: currentAnswer });
+
+        // Fetch the next question
+        const nextQuestion = await callOpenAIProxy({
+            type: 'get_next_question',
+            history: conversationHistory
+        });
+
+        if (nextQuestion && nextQuestion !== 'COMPLETION_SIGNAL') {
+            questionTextElement.textContent = nextQuestion;
+            currentAssistantQuestion = nextQuestion; // Store the new question
+            conversationHistory.push({ role: 'assistant', content: nextQuestion }); // Add AI question to history
+            answerInputElement.value = ''; // Clear input for next answer
+            answerInputElement.focus();
+        } else if (nextQuestion === 'COMPLETION_SIGNAL') {
+            // Questioning complete, switch to Generate Brief
+            questionTextElement.textContent = 'All information gathered. Ready to generate the brief.';
+            answerInputElement.disabled = true;
+            nextBtn.style.display = 'none';
+            generateBriefBtn.style.display = 'inline-block';
+            generateBriefBtn.disabled = false;
+        } else {
+            questionTextElement.textContent = 'Failed to get the next question. Please try again or generate the brief with current info.';
+            // Keep UI enabled to allow retry or generation
+            generateBriefBtn.style.display = 'inline-block'; // Allow generation even if next question fails
+            generateBriefBtn.disabled = false;
         }
     });
+
+    // Removed backBtn listener
 
     // Translate Request button
     translateRequestBtn.addEventListener('click', async () => {
@@ -265,15 +219,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Generate Brief button
     generateBriefBtn.addEventListener('click', async () => {
         saveAnswer(); // Save the last answer
-        if (isLoading) return;
+        // Add the final answer before generating
+        if (!answerInputElement.disabled) { // Check if input is enabled (i.e., last question was asked)
+             const finalAnswer = answerInputElement.value.trim();
+             if (finalAnswer) {
+                 conversationHistory.push({ role: 'user', content: finalAnswer });
+             }
+        }
 
-        console.log("User Answers for Generation:", userAnswers); // Log answers for debugging
+        console.log("Conversation History for Generation:", conversationHistory); // Log history
         questionSection.style.display = 'none';
         briefOutputSection.style.display = 'block';
         briefOutputCode.textContent = 'Generating Brief... Please wait.'; // Show loading
 
-        // Call the proxy function for generation
-        const generatedBrief = await callOpenAIProxy({ type: 'generate', answers: userAnswers });
+        // Call the proxy function for generation using conversation history
+        const generatedBrief = await callOpenAIProxy({ type: 'generate', history: conversationHistory });
 
         if (generatedBrief) {
             briefOutputCode.textContent = generatedBrief;

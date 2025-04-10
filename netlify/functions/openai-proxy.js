@@ -16,43 +16,36 @@ if (!apiKey) {
 // Initialize OpenAI client (only if key exists)
 const openai = apiKey ? new OpenAI({ apiKey }) : null;
 
+// --- Constants ---
+const COMPLETION_SIGNAL = "COMPLETION_SIGNAL"; // Signal that no more questions are needed
+
 // --- Helper Functions ---
 
-// Helper to get answer by question ID from the structured answers object
-function getAnswerById(id, answers, questions) {
-    const index = questions.findIndex(q => q.id === id);
-    // Check if the index exists in answers object
-    return answers && typeof answers[index] !== 'undefined' ? answers[index] : 'N/A';
-}
+// Removed getAnswerById as we now use conversation history
 
-// Construct the prompt for generating the full brief
-function constructBriefPrompt(answers, questions) {
-    const initialRequest = answers['initial_request'] || 'N/A';
-
-    // Build the context string from answers
-    const contextString = questions.map((q, index) =>
-        `- ${q.text}: ${answers[index] || 'N/A'}`
+// Construct the prompt for generating the full brief based on conversation history
+function constructBriefPrompt(history) {
+    // Format history for the prompt
+    const historyString = history.map(turn =>
+        `${turn.role === 'user' ? 'User' : 'Assistant'}: ${turn.content}`
     ).join('\n');
 
     return `
 You are an AI assistant helping create a professional strategic research brief.
-Based on the user's initial request and their answers to the clarifying questions below, generate a comprehensive and well-structured strategic brief.
+Based on the following conversation history between an assistant (asking questions) and a user (providing answers), generate a comprehensive and well-structured strategic brief.
 
-**Initial Request:**
-${initialRequest}
-
-**Clarifying Questions & Answers:**
-${contextString}
+**Conversation History:**
+${historyString}
 
 **Instructions:**
-1.  Synthesize the provided information.
+1.  Synthesize the information provided throughout the conversation history.
 2.  Structure the output exactly according to the following Markdown format.
-3.  Fill in the sections based *only* on the information provided in the answers. Do not add external knowledge.
-4.  For "Project Objectives", infer 1-3 clear objectives based on the business context and challenges mentioned.
-5.  For "Key Questions to Explore", formulate 3-5 specific, actionable research questions that directly address the core need and knowledge gaps identified in the answers. Include the original "Initial Request" as context if helpful, but focus on refined questions.
-6.  For "Methodological Considerations", briefly suggest 1-2 potential research approaches (e.g., qualitative interviews, quantitative survey, market analysis) that seem appropriate given the context, but keep it high-level.
+3.  Fill in the sections based *only* on the information provided in the history. Do not add external knowledge.
+4.  For "Project Objectives", infer 1-3 clear objectives based on the business context and challenges mentioned in the conversation.
+5.  For "Key Questions to Explore", formulate 3-5 specific, actionable research questions that directly address the core need and knowledge gaps identified in the conversation. Use the initial request and subsequent answers as context.
+6.  For "Methodological Considerations", briefly suggest 1-2 potential research approaches (e.g., qualitative interviews, quantitative survey, market analysis) that seem appropriate given the context discussed, but keep it high-level.
 7.  Ensure the tone is professional and clear.
-8.  Do NOT include the original clarifying questions and answers in the final brief output. Only use them to generate the synthesized content for each section.
+8.  Do NOT include the raw conversation history in the final brief output. Only use it to generate the synthesized content for each section.
 
 **Output Format (Use Markdown):**
 
@@ -120,6 +113,46 @@ Translation:
 `; // The AI should start generating the questions right after this line.
 }
 
+// Construct the prompt for getting the next question
+function constructNextQuestionPrompt(history) {
+    // Define the core areas a strategic brief needs
+    const briefSections = [
+        "Business Context (Challenge/Opportunity, Broader Objectives)",
+        "Current Understanding (Existing Knowledge, Assumptions)",
+        "Audience Definition (Target Audience, Key Segments)",
+        "Success Metrics (Measurement, Decision Impact)",
+        "Timeline and Constraints (Budget, Deadlines, Limitations)",
+        "Previous Research & Knowledge Gaps",
+        "Stakeholders & Insight Format/Distribution"
+    ];
+
+    // Format history for the prompt
+    const historyString = history.map(turn =>
+        `${turn.role === 'user' ? 'User' : 'Assistant'}: ${turn.content}`
+    ).join('\n');
+
+    return `
+You are an AI assistant guiding a user through building a strategic research brief.
+Your goal is to ask clarifying questions one by one until all necessary information for a standard brief is gathered.
+
+**Standard Brief Sections to Cover:**
+${briefSections.map(s => `- ${s}`).join('\n')}
+
+**Conversation History So Far:**
+${historyString}
+
+**Instructions:**
+1. Analyze the conversation history.
+2. Identify which standard brief sections still lack sufficient detail based *only* on the history provided.
+3. If crucial information is missing, formulate the *single best, most natural next question* to ask the user to gather that information. The question should be open-ended and conversational.
+4. If you determine that all standard brief sections have been reasonably covered based on the conversation history, respond with the exact text: ${COMPLETION_SIGNAL}
+5. Do NOT ask multiple questions at once. Only provide the single next question OR the completion signal.
+6. Do not add any introductory text like "Okay, the next question is:". Just provide the question itself or the completion signal.
+
+**Next Question or Completion Signal:**
+`; // AI response starts here
+}
+
 
 // --- Netlify Function Handler ---
 exports.handler = async (event) => {
@@ -138,18 +171,31 @@ exports.handler = async (event) => {
 
     try {
         const body = JSON.parse(event.body);
-        const { type, answers, text, questions: questionsData } = body; // Receive questions structure from client
+        // Updated payload structure: type is mandatory, others depend on type
+        const { type, history, text } = body;
 
         let prompt;
-        let model = "gpt-3.5-turbo"; // Default model
+        let model = "gpt-3.5-turbo"; // Default model, can be overridden
 
-        if (type === 'generate' && answers && questionsData) {
-            prompt = constructBriefPrompt(answers, questionsData);
-            model = "gpt-4"; // Use GPT-4 for better synthesis in brief generation if available/preferred
+        if (type === 'get_next_question' && history) {
+            prompt = constructNextQuestionPrompt(history);
+            // Use a faster model for potentially quicker turn-around on questions
+            model = "gpt-3.5-turbo";
+        } else if (type === 'generate' && history) {
+            prompt = constructBriefPrompt(history);
+            // Use a more powerful model for better synthesis in brief generation
+            model = "gpt-4"; // Or "gpt-4-turbo" etc.
         } else if (type === 'translate' && text) {
             prompt = constructTranslatePrompt(text);
+            model = "gpt-3.5-turbo";
         } else {
-            return { statusCode: 400, body: JSON.stringify({ error: 'Invalid request body or type' }) };
+            console.error("Invalid request payload:", body);
+            return { statusCode: 400, body: JSON.stringify({ error: 'Invalid request payload or missing required fields for the type' }) };
+        }
+
+        if (!prompt) {
+             console.error("Failed to construct prompt for payload:", body);
+             return { statusCode: 500, body: JSON.stringify({ error: 'Internal server error: Could not construct prompt' }) };
         }
 
         console.log(`Calling OpenAI API (Type: ${type}, Model: ${model})...`);
@@ -157,12 +203,19 @@ exports.handler = async (event) => {
         const completion = await openai.chat.completions.create({
             messages: [{ role: 'user', content: prompt }],
             model: model,
-            temperature: 0.7, // Adjust for creativity vs. consistency
+            temperature: 0.5, // Slightly lower temperature for more focused questions/briefs
+            // Consider adding max_tokens if needed, especially for brief generation
         });
 
         console.log("OpenAI API call successful.");
 
-        const result = completion.choices[0]?.message?.content?.trim();
+        let result = completion.choices[0]?.message?.content?.trim();
+
+        // Clean up potential artifacts if the model doesn't perfectly follow instructions
+        if (type === 'get_next_question' && result && result !== COMPLETION_SIGNAL) {
+            // Remove potential leading/trailing quotes or labels
+             result = result.replace(/^["']?(Next Question:|Question:)?\s*/i, '').replace(/["']?$/, '');
+        }
 
         if (!result) {
             throw new Error("No content received from OpenAI.");
