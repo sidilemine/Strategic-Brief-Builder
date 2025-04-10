@@ -285,12 +285,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
 
+            // Try parsing JSON only if response is OK
             const data = await response.json();
-            return data.result;
+            return data.result; // For non-background calls (translate, get_question, check_completion)
 
         } catch (error) {
-            console.error('Error calling OpenAI proxy:', error);
-            alert(`Error: ${error.message}`);
+            console.error('Error calling OpenAI proxy:', error); // Log the primary error
+
+            // Attempt to get more details from the response if it exists
+            let errorDetails = error.message; // Default message
+            if (error.response && typeof error.response.text === 'function') {
+                 try {
+                     const errorText = await error.response.text();
+                     console.error("Raw error response:", errorText);
+                     // Try parsing as JSON, but handle failure
+                     try {
+                         const errorJson = JSON.parse(errorText);
+                         if (errorJson.error) {
+                             errorDetails = errorJson.error;
+                         }
+                     } catch (jsonError) {
+                         // If not JSON, use the raw text if it's short, otherwise a generic message
+                         errorDetails = errorText.length < 100 ? errorText : error.message;
+                     }
+                 } catch (textError) {
+                     console.error("Could not read error response text:", textError);
+                 }
+            }
+
+            alert(`Error: ${errorDetails}`); // Show more specific error if possible
+
             // Reset loading indicators on error
             if (payload.type === 'generate') briefOutputCode.textContent = 'Brief generation failed.';
             if (payload.type === 'translate') translatedQuestionsCode.textContent = 'Translation failed.';
