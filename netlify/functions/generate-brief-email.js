@@ -88,6 +88,7 @@ ${historyString}
 
 // --- Helper: Construct Translate Prompt (remains the same) ---
 function constructTranslatePrompt(text) {
+    // This prompt remains unchanged from previous versions
     return `
 You are an AI assistant skilled at refining business requests into actionable research questions... [rest of prompt omitted for brevity]
 
@@ -95,20 +96,33 @@ You are an AI assistant skilled at refining business requests into actionable re
 `;
 }
 
-// --- Helper: Construct Topic Question Prompt (remains the same) ---
+// --- Helper: Construct Topic Question Prompt (MODIFIED) ---
 function constructTopicQuestionPrompt(topicId, history, isFirstQuestion) {
      const historyString = history.map(turn => `${turn.role === 'user' ? 'User' : 'Assistant'}: ${turn.content}`).join('\n');
      const firstOrNext = isFirstQuestion ? "first" : "next relevant";
+     // Modified instructions below
      return `
-You are an AI assistant guiding a user through building a strategic research brief, focusing specifically on the topic: **${topicId.replace(/_/g, ' ')}**... [rest of prompt omitted for brevity]
+You are an AI assistant guiding a user through building a strategic research brief, focusing specifically on the topic: **${topicId.replace(/_/g, ' ')}**.
+
+**Conversation History So Far:**
+${historyString}
+
+**Instructions:**
+1. Review the conversation history provided.
+2. Formulate the single ${firstOrNext}, open-ended, conversational question to ask the user specifically about the **${topicId.replace(/_/g, ' ')}** topic, considering what has already been discussed.
+3. If asking the first question for the topic, make it a good starting point for that topic.
+4. If asking a subsequent question (i.e., ${firstOrNext} is "next relevant"), identify the *single most important piece of missing information* needed to improve coverage of this specific topic based on the history, and formulate your question to elicit that information. Ensure it logically follows the previous answer.
+5. Do NOT ask about other topics.
+6. Do NOT add introductory text like "Okay, the next question is:". Just provide the question itself.
 
 **Question about ${topicId.replace(/_/g, ' ')}:**
-`;
+`; // AI response starts here
 }
 
 // --- Helper: Construct Topic Completion Check Prompt (remains the same) ---
 function constructTopicCompletionCheckPrompt(topicId, history) {
     const historyString = history.map(turn => `${turn.role === 'user' ? 'User' : 'Assistant'}: ${turn.content}`).join('\n');
+    // This prompt remains unchanged
     return `
 You are an AI assistant evaluating conversation history for completeness regarding a specific topic... [rest of prompt omitted for brevity]
 

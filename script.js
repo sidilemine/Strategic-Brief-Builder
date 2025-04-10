@@ -51,7 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Removed copyBriefToClipboard function as brief is emailed
 
     function initializeTopics() {
-        topics = TOPIC_DEFINITIONS.map(topic => ({ ...topic, status: 'pending' }));
+        // Add questionCount, initialized to 0
+        topics = TOPIC_DEFINITIONS.map(topic => ({ ...topic, status: 'pending', questionCount: 0 }));
         currentTopic = null;
         renderTopicList();
     }
@@ -108,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         console.log(`Displaying seed question for: ${topic.name}`);
+        topic.questionCount = 1; // Initialize count for this topic
         questionTextElement.textContent = topic.seed;
         currentAssistantQuestion = topic.seed; // Store the seed question
         conversationHistory.push({ role: 'assistant', content: topic.seed }); // Add seed question to history
@@ -140,6 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleNewQuestionResponse(question) {
         if (question) {
+            if (currentTopic) currentTopic.questionCount++; // Increment count for AI question
+            console.log(`Question count for ${currentTopic?.name}: ${currentTopic?.questionCount}`);
             questionTextElement.textContent = question;
             currentAssistantQuestion = question;
             conversationHistory.push({ role: 'assistant', content: question });
@@ -197,14 +201,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const historyEntry = skippedQuestion ? "User skipped question." : currentAnswer;
         conversationHistory.push({ role: 'user', content: historyEntry });
 
-        // Check if the current topic is now complete
+        // --- Check Question Limit ---
+        const MAX_QUESTIONS_PER_TOPIC = 3; // Seed + 2 Follow-ups
+        if (currentTopic.questionCount >= MAX_QUESTIONS_PER_TOPIC) {
+            console.log(`Max questions (${MAX_QUESTIONS_PER_TOPIC}) reached for topic: ${currentTopic.name}. Moving on.`);
+            moveToNextTopicOrGenerate(currentTopic.id, 'completed'); // Force completion
+            return; // Stop further checks/questions for this topic
+        }
+
+        // --- Check Topic Completion via AI ---
         const isTopicComplete = await checkTopicCompletion(currentTopic);
 
         if (isTopicComplete) {
             moveToNextTopicOrGenerate(currentTopic.id, 'completed');
         } else {
-            // If topic not complete, get another question for the same topic
-            // If topic not complete, get the next AI-generated question for the same topic
+            // If topic not complete AND limit not reached, get the next AI-generated question
             await getNextQuestionForTopic(currentTopic);
         }
     }

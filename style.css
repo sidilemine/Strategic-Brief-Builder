@@ -101,6 +101,18 @@ body {
     /* background-color: #fff; - Inherited from main-container */
 }
 
+.privacy-notice {
+    font-size: 0.8em;
+    color: #7f8c8d; /* Grey text */
+    text-align: center;
+    padding: 0 15px 15px 15px; /* Padding below */
+    border-bottom: 1px solid #eee; /* Separator */
+    margin-bottom: 1.5em;
+}
+.privacy-notice p {
+    margin: 0;
+}
+
 
 h1, h2, h3 {
     color: #2c3e50;
