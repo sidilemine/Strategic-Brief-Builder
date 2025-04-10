@@ -76,29 +76,39 @@ ${historyString}
 `; // AI response starts here
 }
 
-// --- Helper: Construct Translate Prompt (REFINED) ---
+// --- Helper: Construct Translate Prompt (REFINED with Sub-Objectives) ---
 function constructTranslatePrompt(text) {
-    // Refined prompt instructions
+    // Refined prompt instructions for clarification + sub-objectives
     return `
 You are an AI assistant helping users clarify their initial strategic research needs.
 A user has provided the following initial request:
 
 "${text}"
 
-Your task is to generate 3 distinct ways to rephrase or clarify this request, presenting each as a potential starting point for a strategic brief. Each option should focus on clarifying the user's core need from a slightly different angle (e.g., focusing on the problem, the audience, the desired outcome).
+Your task is to generate 3 distinct ways to rephrase or clarify this request. For EACH clarification option, also generate exactly 3 related, more specific research sub-objectives or sub-questions that would fall under that clarification.
 
 **Output Format:**
-- List the 3 clarification options clearly.
-- Start each option with a hyphen (-) and a space.
-- Do NOT include any introductory or concluding text, commentary, examples, or labels like "Option 1". Just output the list of 3 clarification statements.
+- Provide exactly 3 main clarification options.
+- Start each main clarification option with a hyphen (-) and a space.
+- Under each main clarification option, indent and list exactly 3 sub-objectives/sub-questions, each starting with two spaces, a hyphen (-), and a space.
+- Do NOT include any introductory or concluding text, commentary, examples, or labels like "Option 1". Just output the structured list.
 
 **Example Input:** "We need to understand Gen Z better"
 **Example Output:**
 - Clarify the specific business challenge related to Gen Z engagement.
+  - Identify key drivers of low engagement among Gen Z.
+  - Compare our brand perception vs. competitors within the Gen Z segment.
+  - Determine unmet needs or pain points of Gen Z relevant to our category.
 - Define which segments of Gen Z are most critical to understand and why.
+  - Map the different Gen Z personas relevant to our brand.
+  - Analyze media consumption habits of high-priority Gen Z segments.
+  - Understand the path-to-purchase for key Gen Z segments.
 - Specify the key decisions that insights about Gen Z will inform.
+  - Determine optimal messaging strategies for Gen Z.
+  - Identify potential product adjustments to better suit Gen Z preferences.
+  - Prioritize marketing channels for reaching Gen Z effectively.
 
-**Clarification Options:**
+**Clarification Options with Sub-Objectives:**
 `; // AI response starts here
 }
 
@@ -168,7 +178,7 @@ module.exports = async (req, res) => {
             prompt = constructTopicCompletionCheckPrompt(topic, history);
             temperature = 0.1;
         } else if (type === 'translate' && text) {
-            prompt = constructTranslatePrompt(text); // Use the refined function
+            prompt = constructTranslatePrompt(text); // Use the refined function with sub-objectives
             temperature = 0.6; // Slightly higher temp for more varied clarifications
         } else {
             console.error("Invalid request payload:", req.body);
@@ -207,11 +217,8 @@ module.exports = async (req, res) => {
                  result = result.toUpperCase();
              }
         }
-        // Add cleanup for translate if needed (e.g., remove leading/trailing list markers if AI adds them)
-        else if (type === 'translate' && result) {
-             // Basic cleanup: remove potential leading/trailing markdown list characters if the AI didn't follow instructions perfectly
-             result = result.replace(/^\s*-\s*/gm, '').trim();
-        }
+        // No specific cleanup needed for translate now, as we expect structured output
+        // else if (type === 'translate' && result) { ... }
 
 
         if (!result) throw new Error("No content received from OpenAI.");

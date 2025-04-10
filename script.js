@@ -10,7 +10,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const startQuestionsBtn = document.getElementById('start-questions-btn');
     const translateRequestBtn = document.getElementById('translate-request-btn');
     const translationOutputDiv = document.getElementById('translation-output');
-    const translatedQuestionsCode = document.getElementById('translated-questions');
+    // Changed from 'code' element to 'div'
+    const clarificationOptionsContainer = document.getElementById('clarification-options');
+    const useClarificationsBtn = document.getElementById('use-clarifications-btn');
+
 
     const questionTextElement = document.getElementById('question-text');
     const answerInputElement = document.getElementById('answer-input');
@@ -267,7 +270,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (payload.type === 'generate') {
             briefOutputCode.textContent = 'Generating Brief... Please wait.'; // Use brief output area
         } else if (payload.type === 'translate') {
-            translatedQuestionsCode.textContent = 'Translating...';
+            // Use the new container for loading message
+            clarificationOptionsContainer.innerHTML = '<p>Translating...</p>';
         }
 
         try {
@@ -317,7 +321,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Reset loading indicators on error
             if (payload.type === 'generate') briefOutputCode.textContent = 'Brief generation failed.';
-            if (payload.type === 'translate') translatedQuestionsCode.textContent = 'Translation failed.';
+            if (payload.type === 'translate') clarificationOptionsContainer.innerHTML = '<p>Translation failed.</p>';
             if (payload.type.includes('question') || payload.type.includes('completion')) {
                  questionTextElement.textContent = 'An error occurred fetching the next step. Please try again.';
                  answerInputElement.disabled = false;
@@ -380,37 +384,104 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isLoading) return;
 
         translationOutputDiv.style.display = 'block';
-        translatedQuestionsCode.textContent = 'Translating...';
+        clarificationOptionsContainer.innerHTML = '<p>Translating...</p>'; // Use new container
         const translation = await callOpenAIProxy({ type: 'translate', text: initialText });
 
-        // --- MODIFICATION START: Clickable Translations ---
+        // --- MODIFICATION START: Render Checkboxes ---
         if (translation) {
+            clarificationOptionsContainer.innerHTML = ''; // Clear loading/previous
             const lines = translation.split('\n').filter(line => line.trim() !== '');
-            translatedQuestionsCode.innerHTML = ''; // Clear previous content
+            let currentMainOptionText = '';
+            let currentSubObjectives = [];
 
-            // Store the full translation block to be copied on click
-            const fullTranslationText = translation; // Assumes 'translation' is the raw text block
+            lines.forEach((line, index) => {
+                const isSubObjective = line.startsWith('  -');
+                const lineText = line.replace(/^[\s*-]+\s*/, ''); // Clean text
 
-            lines.forEach(line => {
-                const span = document.createElement('span');
-                span.textContent = line;
-                span.style.display = 'block';
-                span.style.cursor = 'pointer';
-                span.style.textDecoration = 'underline';
-                span.style.color = '#3498db';
-                span.addEventListener('click', () => {
-                    // Copy the ENTIRE translation block, not just the clicked line
-                    initialRequestInput.value = fullTranslationText;
-                    initialRequestInput.focus();
-                    translationOutputDiv.style.display = 'none';
-                });
-                translatedQuestionsCode.appendChild(span);
+                if (!isSubObjective) {
+                    // If we encounter a new main objective, render the previous one (if any)
+                    if (currentMainOptionText) {
+                        renderClarificationOption(currentMainOptionText, currentSubObjectives);
+                    }
+                    // Start the new main objective
+                    currentMainOptionText = lineText;
+                    currentSubObjectives = [];
+                } else {
+                    // Add to sub-objectives of the current main option
+                    currentSubObjectives.push(lineText);
+                }
+
+                // Render the last option after the loop finishes
+                if (index === lines.length - 1 && currentMainOptionText) {
+                     renderClarificationOption(currentMainOptionText, currentSubObjectives);
+                }
             });
         } else {
-            translatedQuestionsCode.textContent = 'Translation failed.';
+            clarificationOptionsContainer.innerHTML = '<p>Translation failed.</p>';
         }
         // --- MODIFICATION END ---
     });
+
+    // --- Helper function to render a single clarification option with checkbox ---
+    function renderClarificationOption(mainText, subObjectives) {
+        const div = document.createElement('div');
+        div.style.marginBottom = '10px';
+
+        const label = document.createElement('label');
+        label.style.fontWeight = 'bold';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = mainText; // Store main text
+        // Store sub-objectives in a data attribute (simple approach)
+        checkbox.dataset.subObjectives = subObjectives.join('\n  - ');
+        checkbox.style.marginRight = '8px';
+
+        label.appendChild(checkbox);
+        label.appendChild(document.createTextNode(mainText));
+        div.appendChild(label);
+
+        // Display sub-objectives (indented, not selectable individually)
+        if (subObjectives.length > 0) {
+            const ul = document.createElement('ul');
+            ul.style.marginLeft = '25px';
+            ul.style.fontSize = '0.9em';
+            ul.style.color = '#555';
+            subObjectives.forEach(sub => {
+                const li = document.createElement('li');
+                li.textContent = sub;
+                ul.appendChild(li);
+            });
+            div.appendChild(ul);
+        }
+
+        clarificationOptionsContainer.appendChild(div);
+    }
+
+    // --- Listener for the "Use Selected Clarifications" button ---
+    useClarificationsBtn.addEventListener('click', () => {
+        const selectedCheckboxes = clarificationOptionsContainer.querySelectorAll('input[type="checkbox"]:checked');
+        let combinedText = '';
+
+        selectedCheckboxes.forEach((checkbox, index) => {
+            combinedText += `- ${checkbox.value}\n`; // Add main clarification
+            if (checkbox.dataset.subObjectives) {
+                combinedText += `  - ${checkbox.dataset.subObjectives}\n`; // Add sub-objectives
+            }
+            if (index < selectedCheckboxes.length - 1) {
+                combinedText += '\n'; // Add space between selected blocks
+            }
+        });
+
+        if (combinedText) {
+            initialRequestInput.value = combinedText.trim();
+            initialRequestInput.focus();
+            translationOutputDiv.style.display = 'none'; // Hide after selection
+        } else {
+            alert('Please select at least one clarification option.');
+        }
+    });
+
 
     generateBriefBtn.addEventListener('click', async () => {
         if (isLoading) return;

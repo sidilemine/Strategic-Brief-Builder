@@ -26,10 +26,13 @@
             <p>Describe your strategic need or challenge:</p>
             <textarea id="initial-request" rows="4" placeholder="e.g., We want to understand why Gen Z isn't engaging with our brand..."></textarea>
             <button id="start-questions-btn">Start Building Brief</button>
-            <button id="translate-request-btn">Translate Request (Optional)</button>
+            <button id="translate-request-btn">Clarify Request (Optional)</button> <!-- Changed button text -->
             <div id="translation-output" class="output-section" style="display: none;">
-                <h3>Suggested Research Questions:</h3>
-                <pre><code id="translated-questions"></code></pre>
+                <h3>Suggested Clarifications:</h3>
+                <div id="clarification-options">
+                    <!-- Checkboxes and text will be populated by JS -->
+                </div>
+                <button id="use-clarifications-btn" style="margin-top: 15px;">Use Selected Clarification(s)</button>
             </div>
         </div>
 
