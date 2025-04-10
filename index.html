@@ -25,14 +25,17 @@
             <h2>1. Initial Request</h2>
             <p>Describe your strategic need or challenge:</p>
             <textarea id="initial-request" rows="4" placeholder="e.g., We want to understand why Gen Z isn't engaging with our brand..."></textarea>
-            <button id="start-questions-btn">Start Building Brief</button>
-            <button id="translate-request-btn">Clarify Request (Optional)</button> <!-- Changed button text -->
+            <!-- Moved initial buttons to a container for layout -->
+            <div class="initial-actions">
+                 <button id="start-questions-btn">Start Building Brief</button>
+                 <button id="translate-request-btn" class="clarify-button">Clarify Request (TRY ME!)</button> <!-- Updated text & added class -->
+            </div>
             <div id="translation-output" class="output-section" style="display: none;">
                 <h3>Suggested Clarifications:</h3>
                 <div id="clarification-options">
                     <!-- Checkboxes and text will be populated by JS -->
                 </div>
-                <button id="use-clarifications-btn" style="margin-top: 15px;">Use Selected Clarification(s)</button>
+                <button id="use-clarifications-btn" style="margin-top: 15px;">Add Selected to Brief</button> <!-- Updated button text -->
             </div>
         </div>
 
@@ -41,9 +44,10 @@
             <div id="question-display">
                 <p id="question-text">Loading first question...</p>
                 <textarea id="answer-input" rows="4"></textarea>
-                <!-- Moved buttons below textarea -->
+                <!-- Moved skip button outside answer-actions -->
+                <button id="skip-question-btn" class="skip-button skip-question-layout" style="display: none;">I don't know / Skip Question</button>
                 <div class="answer-actions">
-                     <button id="skip-question-btn" class="skip-button" style="display: none;">I don't know / Skip Question</button>
+                     <!-- Only Submit button remains here -->
                      <button id="next-btn">Submit Answer</button>
                 </div>
             </div>

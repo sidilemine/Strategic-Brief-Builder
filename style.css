@@ -99,6 +99,8 @@ body {
     padding: 30px;
     min-width: 500px; /* Prevent content area from becoming too narrow */
     /* background-color: #fff; - Inherited from main-container */
+    display: flex; /* Use flex for content layout */
+    flex-direction: column; /* Stack content vertically */
 }
 
 .privacy-notice {
@@ -135,11 +137,13 @@ h2 {
 textarea {
     width: 100%;
     padding: 10px;
-    margin-bottom: 15px;
+    /* margin-bottom: 15px; Removed, handled by container */
     border: 1px solid #ccc;
     border-radius: 4px;
-    box-sizing: border-box; /* Include padding and border in the element's total width and height */
+    box-sizing: border-box;
     font-size: 1em;
+    resize: vertical; /* Allow vertical resize */
+    min-height: 80px; /* Ensure a minimum height */
 }
 
 button {
@@ -163,13 +167,32 @@ button:disabled {
     cursor: not-allowed;
 }
 
+/* Styles for initial action buttons */
+.initial-actions {
+    margin-top: 15px;
+    display: flex;
+    justify-content: space-between; /* Position buttons apart */
+    align-items: center;
+}
+.initial-actions #start-questions-btn {
+     margin-right: 0; /* Remove margin if it's on the left */
+}
+.initial-actions .clarify-button {
+    background-color: #1abc9c; /* Teal color for emphasis */
+    margin-left: 10px; /* Add space if needed */
+    margin-right: 0;
+}
+.initial-actions .clarify-button:hover {
+    background-color: #16a085;
+}
+
+/* Styles for skip buttons */
 .skip-button {
     background-color: #95a5a6; /* Grey background */
     font-size: 0.9em;
     padding: 6px 12px;
-    margin-top: 5px; /* Space above skip buttons */
+    margin-top: 5px;
 }
-
 .skip-button:hover {
     background-color: #7f8c8d;
 }
@@ -178,62 +201,46 @@ button:disabled {
     margin-top: auto; /* Push to bottom of sidebar */
 }
 
+/* Layout for skip question button */
+.skip-question-layout {
+    align-self: flex-start; /* Align to the left */
+    margin-top: 10px; /* Space below textarea */
+    margin-right: 0;
+}
 
-/* Removed progress indicator styles */
-
-
+/* Layout for Submit button container */
 .answer-actions {
-    margin-top: 10px; /* Space above buttons */
+    margin-top: 10px; /* Space above submit button */
     display: flex;
-    flex-direction: column; /* Stack buttons vertically */
-    align-items: flex-end; /* Align buttons to the right */
+    justify-content: flex-end; /* Align submit button to the right */
 }
-
-.answer-actions .skip-button {
-    margin-top: 5px; /* Space between skip and submit */
-    margin-right: 0; /* Remove default right margin */
-}
-
 .answer-actions #next-btn {
      margin-right: 0; /* Remove default right margin */
 }
 
 
-/* Keep .navigation-buttons for potential future use or remove if completely unused */
-/* .navigation-buttons {
-    margin-top: 20px;
-    display: flex;
-    justify-content: space-between;
-} */
-
-.output-section {
-    margin-top: 30px;
-    padding: 20px;
-    background-color: #ecf0f1;
-    border-radius: 4px;
-    border: 1px solid #ddd;
-}
-
-.output-section h3 {
-    margin-top: 0;
-    color: #2c3e50;
-}
-
-pre {
-    white-space: pre-wrap; /* Wrap long lines */
-    word-wrap: break-word; /* Break words if necessary */
-    background-color: #fdfdfd;
-    padding: 15px;
-    border-radius: 4px;
-    border: 1px solid #eee;
-    max-height: 400px; /* Limit height and add scroll if needed */
+/* Enhanced Brief Output Formatting */
+#brief-output-section pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background-color: #f8f9fa; /* Lighter background */
+    padding: 25px; /* More padding */
+    border-radius: 5px;
+    border: 1px solid #dee2e6; /* Subtle border */
+    max-height: 60vh; /* Adjust max height */
     overflow-y: auto;
+    font-family: 'Georgia', serif; /* More formal font */
+    font-size: 1rem; /* Adjust font size */
+    line-height: 1.7; /* Improve readability */
+    color: #343a40; /* Darker text color */
+}
+/* Attempt to style markdown-like elements (limited) */
+#brief-output-section pre code {
+    font-family: inherit; /* Use parent font */
+    font-size: inherit;
+    /* Cannot reliably style h2, lists etc. within pre with CSS alone */
 }
 
-code {
-    font-family: monospace;
-    font-size: 0.95em;
-}
 
 /* Responsive adjustments */
 @media (max-width: 900px) { /* Adjust breakpoint for sidebar */
@@ -246,8 +253,8 @@ code {
         border-right: none;
         border-bottom: 1px solid #ddd;
         padding: 15px;
-        max-height: 200px; /* Limit height on small screens */
-        overflow-y: auto; /* Add scroll if needed */
+        max-height: 200px;
+        overflow-y: auto;
     }
     #topic-sidebar h2 {
         font-size: 1.1em;
@@ -258,6 +265,7 @@ code {
     }
     .content-container {
         padding: 20px;
+        min-width: unset; /* Remove min-width on mobile */
     }
     /* Keep other mobile styles */
      h1 {
@@ -270,20 +278,28 @@ code {
         padding: 8px 15px;
         font-size: 0.9em;
     }
-    /* Corrected styles for answer-actions within media query */
+    /* Mobile button layouts */
+     .initial-actions {
+         flex-direction: column; /* Stack initial buttons */
+     }
+     .initial-actions button {
+         width: 100%;
+         margin: 5px 0;
+     }
+     .skip-question-layout {
+         width: 100%; /* Full width skip button */
+         margin-bottom: 10px;
+         text-align: center;
+     }
      .answer-actions {
-        align-items: stretch; /* Make buttons full width on mobile */
+        justify-content: stretch; /* Full width submit button */
     }
      .answer-actions button {
         width: 100%;
-        margin-bottom: 10px;
+        margin-bottom: 0; /* No margin below last button */
     }
-     .answer-actions button:last-child {
-        margin-bottom: 0;
-    }
-    /* Ensure generate button also behaves on mobile if needed, though it might be hidden */
      #generate-brief-btn {
-         float: none; /* Remove float on mobile */
+         float: none;
          width: 100%;
          margin-top: 15px;
      }

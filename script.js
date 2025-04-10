@@ -10,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const startQuestionsBtn = document.getElementById('start-questions-btn');
     const translateRequestBtn = document.getElementById('translate-request-btn');
     const translationOutputDiv = document.getElementById('translation-output');
-    // Changed from 'code' element to 'div'
     const clarificationOptionsContainer = document.getElementById('clarification-options');
     const useClarificationsBtn = document.getElementById('use-clarifications-btn');
 
@@ -21,9 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextBtn = document.getElementById('next-btn');
     const skipQuestionBtn = document.getElementById('skip-question-btn');
     const skipTopicBtn = document.getElementById('skip-topic-btn');
-    const generateBriefBtn = document.getElementById('generate-brief-btn'); // Simple button
+    const generateBriefBtn = document.getElementById('generate-brief-btn');
 
-    // Re-added brief output elements
     const briefOutputCode = document.getElementById('brief-output');
     const copyBriefBtn = document.getElementById('copy-brief-btn');
     const copyStatus = document.getElementById('copy-status');
@@ -31,8 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State ---
     let isLoading = false;
     let conversationHistory = [];
-    // Added questionCount to topic state
-    let topics = []; // Will be populated with { id, name, seed, status ('pending', 'active', 'completed', 'skipped'), questionCount }
+    let topics = [];
     let currentTopic = null;
     let currentAssistantQuestion = null;
 
@@ -49,14 +46,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Functions ---
 
-    // Re-added copyBriefToClipboard function
     function copyBriefToClipboard() {
         const briefText = briefOutputCode.textContent;
         navigator.clipboard.writeText(briefText).then(() => {
             copyStatus.style.display = 'inline';
-            setTimeout(() => {
-                copyStatus.style.display = 'none';
-            }, 2000);
+            setTimeout(() => { copyStatus.style.display = 'none'; }, 2000);
         }).catch(err => {
             console.error('Failed to copy brief: ', err);
             alert('Failed to copy brief. Please copy manually.');
@@ -64,19 +58,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function initializeTopics() {
-        // Add questionCount, initialized to 0
         topics = TOPIC_DEFINITIONS.map(topic => ({ ...topic, status: 'pending', questionCount: 0 }));
         currentTopic = null;
         renderTopicList();
     }
 
     function renderTopicList() {
-        topicListElement.innerHTML = ''; // Clear existing list
+        topicListElement.innerHTML = '';
         topics.forEach(topic => {
             const li = document.createElement('li');
             li.textContent = topic.name;
             li.id = `topic-${topic.id}`;
-            li.className = topic.status; // Apply class based on status
+            li.className = topic.status;
             topicListElement.appendChild(li);
         });
     }
@@ -126,7 +119,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
      async function getNextQuestionForTopic(topic) {
          if (!topic) return null;
-         // Keep previous question visible, just disable input
          answerInputElement.value = '';
          answerInputElement.disabled = true;
          nextBtn.disabled = true;
@@ -145,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleNewQuestionResponse(question) {
         if (question) {
-            if (currentTopic) currentTopic.questionCount++; // Increment count
+            if (currentTopic) currentTopic.questionCount++; // Increment count for AI question
             console.log(`Question count for ${currentTopic?.name}: ${currentTopic?.questionCount}`);
             questionTextElement.textContent = question;
             currentAssistantQuestion = question;
@@ -157,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
             answerInputElement.focus();
         } else {
             questionTextElement.textContent = 'An error occurred fetching the next step. Please try again.';
-            answerInputElement.disabled = false; // Re-enable on error
+            answerInputElement.disabled = false;
             nextBtn.disabled = false;
             skipQuestionBtn.disabled = false;
             skipTopicBtn.disabled = false;
@@ -190,26 +182,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const currentAnswer = answerInputElement.value.trim();
+        // Only require answer if not skipping
         if (!skippedQuestion && currentAnswer === '') {
             alert('Please provide an answer or skip the question.');
             return;
         }
 
+        // Add user response (or skip indication) to history
         const historyEntry = skippedQuestion ? "User skipped question." : currentAnswer;
         conversationHistory.push({ role: 'user', content: historyEntry });
 
-        const MAX_QUESTIONS_PER_TOPIC = 3;
+        // --- MODIFICATION: Increment count if skipping ---
+        // Note: Count is incremented when a question is *displayed* (seed or AI).
+        // Skipping means the displayed question wasn't answered, but still counts.
+        // We need to check the limit *after* potentially skipping.
+
+        const MAX_QUESTIONS_PER_TOPIC = 3; // Seed + 2 Follow-ups
+
+        // Check limit *before* deciding next action
         if (currentTopic.questionCount >= MAX_QUESTIONS_PER_TOPIC) {
             console.log(`Max questions (${MAX_QUESTIONS_PER_TOPIC}) reached for topic: ${currentTopic.name}. Moving on.`);
-            moveToNextTopicOrGenerate(currentTopic.id, 'completed');
+            moveToNextTopicOrGenerate(currentTopic.id, 'completed'); // Force completion
             return;
         }
 
+        // If skipping, don't check completion, just get next question (if limit not hit)
+        if (skippedQuestion) {
+             console.log("Skipped question, getting next question for topic:", currentTopic.name);
+             await getNextQuestionForTopic(currentTopic);
+             return;
+        }
+
+        // If answered and limit not hit, check completion via AI
         const isTopicComplete = await checkTopicCompletion(currentTopic);
 
         if (isTopicComplete) {
             moveToNextTopicOrGenerate(currentTopic.id, 'completed');
         } else {
+            // If topic not complete AND limit not reached, get the next AI-generated question
             await getNextQuestionForTopic(currentTopic);
         }
     }
@@ -246,7 +256,6 @@ document.addEventListener('DOMContentLoaded', () => {
         nextBtn.style.display = 'none';
         skipQuestionBtn.style.display = 'none';
         skipTopicBtn.style.display = 'none';
-        // Show the simple generate button
         generateBriefBtn.style.display = 'inline-block';
         generateBriefBtn.disabled = false;
     }
@@ -268,9 +277,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (payload.type === 'check_topic_completion') {
              console.log(`Checking completion for ${payload.topic}...`);
         } else if (payload.type === 'generate') {
-            briefOutputCode.textContent = 'Generating Brief... Please wait.'; // Use brief output area
+            briefOutputCode.textContent = 'Generating Brief... Please wait.';
         } else if (payload.type === 'translate') {
-            // Use the new container for loading message
             clarificationOptionsContainer.innerHTML = '<p>Translating...</p>';
         }
 
@@ -282,44 +290,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(payload),
             });
 
-            // No 202 handling needed for synchronous flow
-
             if (!response.ok) {
                 const errorData = await response.json();
                 throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
             }
 
-            // Try parsing JSON only if response is OK
             const data = await response.json();
-            return data.result; // For non-background calls (translate, get_question, check_completion)
+            return data.result;
 
         } catch (error) {
-            console.error('Error calling OpenAI proxy:', error); // Log the primary error
-
-            // Attempt to get more details from the response if it exists
-            let errorDetails = error.message; // Default message
+            console.error('Error calling OpenAI proxy:', error);
+            let errorDetails = error.message;
             if (error.response && typeof error.response.text === 'function') {
                  try {
                      const errorText = await error.response.text();
                      console.error("Raw error response:", errorText);
-                     // Try parsing as JSON, but handle failure
                      try {
                          const errorJson = JSON.parse(errorText);
-                         if (errorJson.error) {
-                             errorDetails = errorJson.error;
-                         }
+                         if (errorJson.error) errorDetails = errorJson.error;
                      } catch (jsonError) {
-                         // If not JSON, use the raw text if it's short, otherwise a generic message
                          errorDetails = errorText.length < 100 ? errorText : error.message;
                      }
                  } catch (textError) {
                      console.error("Could not read error response text:", textError);
                  }
             }
-
-            alert(`Error: ${errorDetails}`); // Show more specific error if possible
-
-            // Reset loading indicators on error
+            alert(`Error: ${errorDetails}`);
             if (payload.type === 'generate') briefOutputCode.textContent = 'Brief generation failed.';
             if (payload.type === 'translate') clarificationOptionsContainer.innerHTML = '<p>Translation failed.</p>';
             if (payload.type.includes('question') || payload.type.includes('completion')) {
@@ -329,11 +325,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return null;
         } finally {
             isLoading = false;
-            // Restore button states carefully
              nextBtn.disabled = originalButtonStates.next;
              skipQuestionBtn.disabled = originalButtonStates.skipQ;
              skipTopicBtn.disabled = originalButtonStates.skipT;
-             // Only re-enable generate if it was originally enabled (i.e., in generate state)
              generateBriefBtn.disabled = (generateBriefBtn.style.display === 'none') ? true : originalButtonStates.gen;
              translateRequestBtn.disabled = originalButtonStates.trans;
              if (payload.type.includes('question') || payload.type.includes('completion')) {
@@ -345,9 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Listeners ---
     startQuestionsBtn.addEventListener('click', async () => {
         const initialRequest = initialRequestInput.value.trim();
-        if (initialRequest === '') {
-            alert('Please enter your initial request first.'); return;
-        }
+        if (initialRequest === '') { alert('Please enter your initial request first.'); return; }
         if (isLoading) return;
 
         initializeTopics();
@@ -384,101 +376,120 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isLoading) return;
 
         translationOutputDiv.style.display = 'block';
-        clarificationOptionsContainer.innerHTML = '<p>Translating...</p>'; // Use new container
+        clarificationOptionsContainer.innerHTML = '<p>Translating...</p>';
         const translation = await callOpenAIProxy({ type: 'translate', text: initialText });
 
-        // --- MODIFICATION START: Render Checkboxes ---
         if (translation) {
-            clarificationOptionsContainer.innerHTML = ''; // Clear loading/previous
+            clarificationOptionsContainer.innerHTML = '';
             const lines = translation.split('\n').filter(line => line.trim() !== '');
-            let currentMainOptionText = '';
-            let currentSubObjectives = [];
+            let currentMainOptionDiv = null;
+            let mainOptionCounter = 0;
 
-            lines.forEach((line, index) => {
+            lines.forEach((line) => {
                 const isSubObjective = line.startsWith('  -');
-                const lineText = line.replace(/^[\s*-]+\s*/, ''); // Clean text
+                const lineText = line.replace(/^[\s*-]+\s*/, '');
 
                 if (!isSubObjective) {
-                    // If we encounter a new main objective, render the previous one (if any)
-                    if (currentMainOptionText) {
-                        renderClarificationOption(currentMainOptionText, currentSubObjectives);
-                    }
-                    // Start the new main objective
-                    currentMainOptionText = lineText;
-                    currentSubObjectives = [];
-                } else {
-                    // Add to sub-objectives of the current main option
-                    currentSubObjectives.push(lineText);
-                }
+                    mainOptionCounter++;
+                    currentMainOptionDiv = document.createElement('div');
+                    currentMainOptionDiv.style.marginBottom = '10px';
+                    currentMainOptionDiv.dataset.mainText = lineText;
 
-                // Render the last option after the loop finishes
-                if (index === lines.length - 1 && currentMainOptionText) {
-                     renderClarificationOption(currentMainOptionText, currentSubObjectives);
+                    const label = document.createElement('label');
+                    label.style.fontWeight = 'bold';
+                    label.style.display = 'block';
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.value = lineText;
+                    checkbox.name = `clarification_main_${mainOptionCounter}`;
+                    checkbox.style.marginRight = '8px';
+                    checkbox.addEventListener('change', (e) => {
+                        const subCheckboxes = e.target.closest('div').querySelectorAll('input[type="checkbox"][data-sub-objective="true"]');
+                        subCheckboxes.forEach(subCb => subCb.checked = e.target.checked);
+                    });
+
+                    label.appendChild(checkbox);
+                    label.appendChild(document.createTextNode(lineText));
+                    currentMainOptionDiv.appendChild(label);
+                    clarificationOptionsContainer.appendChild(currentMainOptionDiv);
+
+                } else if (currentMainOptionDiv) {
+                    const subLabel = document.createElement('label');
+                    subLabel.style.marginLeft = '25px';
+                    subLabel.style.display = 'block';
+                    subLabel.style.fontWeight = 'normal';
+                    subLabel.style.fontSize = '0.9em';
+
+                    const subCheckbox = document.createElement('input');
+                    subCheckbox.type = 'checkbox';
+                    subCheckbox.value = lineText;
+                    subCheckbox.name = `clarification_sub_${mainOptionCounter}`;
+                    subCheckbox.dataset.subObjective = "true";
+                    subCheckbox.style.marginRight = '8px';
+                    subCheckbox.addEventListener('change', (e) => {
+                         if (!e.target.checked) {
+                              const mainCheckbox = e.target.closest('div').querySelector('input[type="checkbox"]:not([data-sub-objective="true"])');
+                              if (mainCheckbox) mainCheckbox.checked = false;
+                         }
+                    });
+
+                    subLabel.appendChild(subCheckbox);
+                    subLabel.appendChild(document.createTextNode(lineText));
+                    currentMainOptionDiv.appendChild(subLabel);
                 }
             });
         } else {
             clarificationOptionsContainer.innerHTML = '<p>Translation failed.</p>';
         }
-        // --- MODIFICATION END ---
     });
 
-    // --- Helper function to render a single clarification option with checkbox ---
-    function renderClarificationOption(mainText, subObjectives) {
-        const div = document.createElement('div');
-        div.style.marginBottom = '10px';
-
-        const label = document.createElement('label');
-        label.style.fontWeight = 'bold';
-
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.value = mainText; // Store main text
-        // Store sub-objectives in a data attribute (simple approach)
-        checkbox.dataset.subObjectives = subObjectives.join('\n  - ');
-        checkbox.style.marginRight = '8px';
-
-        label.appendChild(checkbox);
-        label.appendChild(document.createTextNode(mainText));
-        div.appendChild(label);
-
-        // Display sub-objectives (indented, not selectable individually)
-        if (subObjectives.length > 0) {
-            const ul = document.createElement('ul');
-            ul.style.marginLeft = '25px';
-            ul.style.fontSize = '0.9em';
-            ul.style.color = '#555';
-            subObjectives.forEach(sub => {
-                const li = document.createElement('li');
-                li.textContent = sub;
-                ul.appendChild(li);
-            });
-            div.appendChild(ul);
-        }
-
-        clarificationOptionsContainer.appendChild(div);
-    }
-
-    // --- Listener for the "Use Selected Clarifications" button ---
     useClarificationsBtn.addEventListener('click', () => {
         const selectedCheckboxes = clarificationOptionsContainer.querySelectorAll('input[type="checkbox"]:checked');
         let combinedText = '';
+        let processedMains = new Set();
 
-        selectedCheckboxes.forEach((checkbox, index) => {
-            combinedText += `- ${checkbox.value}\n`; // Add main clarification
-            if (checkbox.dataset.subObjectives) {
-                combinedText += `  - ${checkbox.dataset.subObjectives}\n`; // Add sub-objectives
+        // Iterate through all checkboxes to reconstruct the text based on selection
+        clarificationOptionsContainer.querySelectorAll('div').forEach(mainDiv => {
+            const mainCheckbox = mainDiv.querySelector('input[type="checkbox"]:not([data-sub-objective="true"])');
+            const mainText = mainDiv.dataset.mainText;
+            let blockToAdd = '';
+            let mainAdded = false;
+
+            // Check main checkbox first
+            if (mainCheckbox && mainCheckbox.checked) {
+                 blockToAdd += `- ${mainText}\n`;
+                 mainAdded = true;
+                 processedMains.add(mainText); // Mark main as processed
             }
-            if (index < selectedCheckboxes.length - 1) {
-                combinedText += '\n'; // Add space between selected blocks
+
+            // Check sub-objective checkboxes
+            mainDiv.querySelectorAll('input[type="checkbox"][data-sub-objective="true"]').forEach(subCheckbox => {
+                 if (subCheckbox.checked) {
+                      // If main wasn't added yet (because it wasn't checked), add it now
+                      if (!mainAdded && !processedMains.has(mainText)) {
+                           blockToAdd += `- ${mainText}\n`;
+                           processedMains.add(mainText);
+                           mainAdded = true; // Mark as added for this block
+                      }
+                      // Add the checked sub-objective, ensuring indentation
+                      blockToAdd += `  - ${subCheckbox.value}\n`;
+                 }
+            });
+
+            if (blockToAdd) {
+                 if (combinedText) combinedText += '\n'; // Add space between blocks
+                 combinedText += blockToAdd;
             }
         });
+
 
         if (combinedText) {
             initialRequestInput.value = combinedText.trim();
             initialRequestInput.focus();
-            translationOutputDiv.style.display = 'none'; // Hide after selection
+            translationOutputDiv.style.display = 'none';
         } else {
-            alert('Please select at least one clarification option.');
+            alert('Please select at least one clarification option or sub-objective.');
         }
     });
 
@@ -502,24 +513,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (generatedBrief) {
             briefOutputCode.textContent = generatedBrief;
-            copyBriefBtn.disabled = false; // Enable copy button
+            copyBriefBtn.disabled = false;
         } else {
             briefOutputCode.textContent = 'Brief generation failed.';
-            copyBriefBtn.disabled = true; // Keep copy disabled on failure
+            copyBriefBtn.disabled = true;
         }
-        // Re-enable generate button? Or assume one generation per session? For now, keep disabled.
         // generateBriefBtn.disabled = false;
     });
 
-    // Re-add copyBriefBtn listener
     copyBriefBtn.addEventListener('click', copyBriefToClipboard);
 
     // --- Initial Setup ---
     questionSection.style.display = 'none';
     briefOutputSection.style.display = 'none';
     translationOutputDiv.style.display = 'none';
-    generateBriefBtn.style.display = 'none'; // Hide generate button initially
-    copyBriefBtn.disabled = true; // Disable copy initially
+    generateBriefBtn.style.display = 'none';
+    copyBriefBtn.disabled = true;
     topicSidebar.style.display = 'none';
     skipQuestionBtn.style.display = 'none';
     skipTopicBtn.style.display = 'none';
