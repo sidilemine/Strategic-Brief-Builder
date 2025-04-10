@@ -37,18 +37,23 @@
                 <textarea id="answer-input" rows="4"></textarea>
             </div>
             </div>
+            </div>
             <div class="navigation-buttons">
                 <button id="skip-question-btn" class="skip-button" style="display: none;">I don't know / Skip Question</button>
-                <button id="next-btn">Submit Answer</button> <!-- Text changed -->
-                <button id="generate-brief-btn" style="display: none;">Generate Brief</button>
+                <button id="next-btn">Submit Answer</button>
+                <!-- Generate button area -->
+                <div id="generate-section" style="display: none; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;">
+                     <label for="email-input" style="margin-right: 10px;">Email Address:</label>
+                     <input type="email" id="email-input" placeholder="Enter your email to receive the brief" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; margin-right: 10px; width: 250px;">
+                     <button id="generate-brief-btn">Generate & Email Brief</button>
+                </div>
             </div>
         </div>
 
         <div id="brief-output-section" class="output-section" style="display: none;">
-            <h2>3. Generated Brief</h2>
-            <pre><code id="brief-output"></code></pre>
-            <button id="copy-brief-btn">Copy Brief</button>
-            <p id="copy-status" style="display: none; color: green;">Brief copied to clipboard!</p>
+            <h2>3. Brief Generation Status</h2>
+            <p id="brief-status-message">Generating brief...</p> <!-- Changed from pre/code to a status message -->
+            <!-- Removed copy button as brief is emailed -->
         </div>
         </div>
     </div>

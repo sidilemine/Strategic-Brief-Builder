@@ -18,11 +18,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const nextBtn = document.getElementById('next-btn');
     const skipQuestionBtn = document.getElementById('skip-question-btn');
     const skipTopicBtn = document.getElementById('skip-topic-btn');
+    // Generate section elements
+    const generateSection = document.getElementById('generate-section');
+    const emailInput = document.getElementById('email-input');
     const generateBriefBtn = document.getElementById('generate-brief-btn');
 
-    const briefOutputCode = document.getElementById('brief-output');
-    const copyBriefBtn = document.getElementById('copy-brief-btn');
-    const copyStatus = document.getElementById('copy-status');
+    // Brief status elements
+    const briefStatusMessage = document.getElementById('brief-status-message');
+    // Removed briefOutputCode, copyBriefBtn, copyStatus references as they are no longer used
 
     // --- State ---
     let isLoading = false;
@@ -44,6 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Removed COMPLETION_SIGNAL constant as it's handled by backend YES/NO check
 
     // --- Functions ---
+
+    // Removed copyBriefToClipboard function as brief is emailed
 
     function initializeTopics() {
         topics = TOPIC_DEFINITIONS.map(topic => ({ ...topic, status: 'pending' }));
@@ -243,23 +248,13 @@ document.addEventListener('DOMContentLoaded', () => {
         nextBtn.style.display = 'none';
         skipQuestionBtn.style.display = 'none';
         skipTopicBtn.style.display = 'none';
-        generateBriefBtn.style.display = 'inline-block';
+        // Show the email input section instead of just the button
+        generateSection.style.display = 'block';
         generateBriefBtn.disabled = false;
+        emailInput.focus(); // Focus the email input
     }
 
-
-    function copyBriefToClipboard() {
-        const briefText = briefOutputCode.textContent;
-        navigator.clipboard.writeText(briefText).then(() => {
-            copyStatus.style.display = 'inline';
-            setTimeout(() => {
-                copyStatus.style.display = 'none';
-            }, 2000);
-        }).catch(err => {
-            console.error('Failed to copy brief: ', err);
-            alert('Failed to copy brief. Please copy manually.');
-        });
-    }
+    // Removed copyBriefToClipboard function
 
     // --- API Call Function ---
     async function callOpenAIProxy(payload) {
@@ -293,11 +288,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const response = await fetch('/.netlify/functions/openai-proxy', {
+            // Use the renamed function endpoint
+            const functionEndpoint = '/.netlify/functions/generate-brief-email'; // Corrected endpoint name
+            const response = await fetch(functionEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
+
+            // Handle the 202 Accepted status for background function start
+            if (payload.type === 'generate' && response.status === 202) {
+                console.log("Background brief generation started.");
+                return { backgroundStarted: true }; // Special signal for background start
+            }
 
             if (!response.ok) {
                 const errorData = await response.json();
@@ -305,13 +308,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const data = await response.json();
-            return data.result;
+            return data.result; // For non-background calls (translate, get_question, check_completion)
 
         } catch (error) {
             console.error('Error calling OpenAI proxy:', error);
             alert(`Error: ${error.message}`);
             // Reset specific loading indicators on error
-            if (payload.type === 'generate') briefOutputCode.textContent = 'Generation failed.';
+            if (payload.type === 'generate') briefStatusMessage.textContent = 'Brief generation request failed.';
             if (payload.type === 'translate') translatedQuestionsCode.textContent = 'Translation failed.';
             if (payload.type.includes('question') || payload.type.includes('completion')) {
                  questionTextElement.textContent = 'An error occurred. Please try again.';
@@ -412,30 +415,50 @@ document.addEventListener('DOMContentLoaded', () => {
     generateBriefBtn.addEventListener('click', async () => {
         if (isLoading) return;
 
-        // Ensure final state is captured if needed (though should be handled by flow)
-        console.log("Conversation History for Generation:", conversationHistory);
+        const email = emailInput.value.trim();
+        // Basic email validation
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+             alert('Please enter a valid email address.');
+             emailInput.focus();
+             return;
+        }
+
+        console.log("Requesting brief generation for:", email);
+        console.log("Conversation History:", conversationHistory);
+
+        // Show status message area
         questionSection.style.display = 'none';
-        topicSidebar.style.display = 'none'; // Hide sidebar when showing brief
+        topicSidebar.style.display = 'none';
         briefOutputSection.style.display = 'block';
-        briefOutputCode.textContent = 'Generating Brief... Please wait.';
+        briefStatusMessage.textContent = `Requesting brief generation for ${email}...`;
+        generateBriefBtn.disabled = true; // Disable button after click
 
-        const generatedBrief = await callOpenAIProxy({ type: 'generate', history: conversationHistory });
+        // Call the background function
+        const response = await callOpenAIProxy({
+            type: 'generate',
+            history: conversationHistory,
+            emailAddress: email // Send email address to backend
+        });
 
-        if (generatedBrief) {
-            briefOutputCode.textContent = generatedBrief;
+        // Check for the special signal indicating background start
+        if (response && response.backgroundStarted) {
+            briefStatusMessage.textContent = `Brief generation started. It will be emailed to ${email} shortly.`;
         } else {
-            briefOutputCode.textContent = 'Brief generation failed.';
+            // Handle potential errors if the background function didn't start correctly
+            briefStatusMessage.textContent = 'There was an issue starting the brief generation. Please try again later.';
+            // Re-enable button on immediate failure?
+            generateBriefBtn.disabled = false;
         }
     });
 
-    copyBriefBtn.addEventListener('click', copyBriefToClipboard);
+    // Removed copyBriefBtn listener
 
     // --- Initial Setup ---
     questionSection.style.display = 'none';
     briefOutputSection.style.display = 'none';
     translationOutputDiv.style.display = 'none';
-    generateBriefBtn.style.display = 'none';
-    topicSidebar.style.display = 'none'; // Hide sidebar initially
+    generateSection.style.display = 'none'; // Hide email input initially
+    topicSidebar.style.display = 'none';
     skipQuestionBtn.style.display = 'none';
     skipTopicBtn.style.display = 'none';
 
