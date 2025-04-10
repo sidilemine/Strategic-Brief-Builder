@@ -588,6 +588,46 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add listener for the download button
     downloadDocxBtn.addEventListener('click', downloadBriefAsDocx);
 
+    // --- TEMP: Listener for DOCX Test Button ---
+    const testDocxBtn = document.getElementById('test-docx-btn');
+    if (testDocxBtn) {
+        testDocxBtn.addEventListener('click', () => {
+            console.log("Testing DOCX download...");
+            // Simulate having brief content
+            const sampleBrief = `# Strategic Brief: Sample Test
+
+## Section One
+This is the first paragraph of section one.
+It has multiple lines.
+
+## Section Two
+- This is a list item.
+- This is another list item.
+  - This is an indented item (may not format perfectly in DOCX).
+- Back to the main list.
+
+This is a paragraph after the list.`;
+
+            // Put content into the output area
+            briefOutputCode.textContent = sampleBrief;
+            // Make output section visible if hidden
+            briefOutputSection.style.display = 'block';
+            // Ensure copy/download buttons are enabled for the test
+            copyBriefBtn.disabled = false;
+            if (typeof htmlDocx !== 'undefined') {
+                 downloadDocxBtn.disabled = false;
+            } else {
+                 downloadDocxBtn.disabled = true;
+                 console.warn("html-to-docx library not ready for test.");
+            }
+
+
+            // Call the download function
+            downloadBriefAsDocx();
+        });
+    }
+    // --- END TEMP ---
+
 
     // --- Initial Setup ---
     questionSection.style.display = 'none';
