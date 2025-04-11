@@ -9,10 +9,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "docx": "^9.3.0",
     "openai": "^4.0.0"
   },
   "devDependencies": {
-    "esbuild": "^0.25.2",
-    "html-to-docx": "^1.8.0"
+    "esbuild": "^0.25.2"
   }
 }

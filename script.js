@@ -1,4 +1,7 @@
-import * as htmlDocx from 'html-to-docx';
+// Import the docx library components
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Numbering, Indent } from 'docx';
+// Note: We might not need the direct import if esbuild handles it, but keep for clarity.
+// If build fails, remove this line and rely on esbuild finding the module.
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
@@ -26,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const briefOutputCode = document.getElementById('brief-output');
     const copyBriefBtn = document.getElementById('copy-brief-btn');
-    const downloadDocxBtn = document.getElementById('download-docx-btn'); // Added
+    const downloadDocxBtn = document.getElementById('download-docx-btn');
     const copyStatus = document.getElementById('copy-status');
 
     // --- State ---
@@ -52,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function copyBriefToClipboard() {
         const briefText = briefOutputCode.textContent;
         navigator.clipboard.writeText(briefText).then(() => {
-            copyStatus.textContent = "Brief copied to clipboard!"; // Make message dynamic
+            copyStatus.textContent = "Brief copied to clipboard!";
             copyStatus.style.display = 'inline';
             setTimeout(() => { copyStatus.style.display = 'none'; }, 2000);
         }).catch(err => {
@@ -61,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Function to generate and download DOCX ---
+    // --- Function to generate and download DOCX using 'docx' library ---
     async function downloadBriefAsDocx() {
         const briefText = briefOutputCode.textContent;
         if (!briefText || briefText === 'Generating Brief... Please wait.' || briefText === 'Brief generation failed.') {
@@ -69,60 +72,160 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // --- MODIFICATION START: Check for library on window object ---
-        // Check if the library is loaded and attached to the window object
-        if (typeof window.htmlDocx === 'undefined') {
-            alert('Error: Document generation library (html-docx) failed to load or is not ready. Please try again in a moment.');
-            console.error('html-to-docx library (window.htmlDocx) not found.');
-            return;
-        }
-        // --- MODIFICATION END ---
-
-
-        // Basic Markdown-to-HTML conversion
-        let htmlContent = briefText
-            .replace(/^# (.*$)/gm, '<h1>$1</h1>')       // H1
-            .replace(/^## (.*$)/gm, '<h2>$1</h2>')      // H2
-            .replace(/^### (.*$)/gm, '<h3>$1</h3>')     // H3 (optional)
-            .replace(/^\s*-\s+(.*$)/gm, '<li>$1</li>') // List items
-            .replace(/<\/li>\n<li>/gm, '</li><li>')    // Fix potential extra space between li
-            .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>') // Wrap list items in ul (simple approach)
-            .replace(/\n/g, '<br>');                   // Replace newlines with <br> for paragraphs
-
-        // Ensure lists are properly separated if multiple appear
-        htmlContent = htmlContent.replace(/<\/ul><br><ul>/g, '</ul><ul>');
-
-        // Add basic structure for the library
-        const fullHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>${htmlContent}</body></html>`;
-
         try {
             copyStatus.textContent = "Generating DOCX...";
             copyStatus.style.display = 'inline';
 
-            // Use window.htmlDocx
-            const fileBuffer = await window.htmlDocx.asBlob(fullHtml);
+            const lines = briefText.split('\n');
+            const docSections = [];
+            let currentListItems = [];
 
-            // Use FileSaver.js logic (often included or polyfilled) or create link manually
-            const blobUrl = URL.createObjectURL(fileBuffer);
+            // Define numbering for lists
+            const numbering = new Numbering({
+                config: [
+                    {
+                        reference: "bullet-numbering",
+                        levels: [
+                            {
+                                level: 0,
+                                format: "bullet",
+                                text: "\u2022", // Bullet character
+                                alignment: AlignmentType.LEFT,
+                                style: {
+                                    paragraph: {
+                                        indent: { left: 720, hanging: 360 }, // Standard bullet indent (720 = 0.5 inch)
+                                    },
+                                },
+                            },
+                             {
+                                level: 1, // For indented lists
+                                format: "bullet",
+                                text: "\u25E6", // White bullet or other character
+                                alignment: AlignmentType.LEFT,
+                                style: {
+                                    paragraph: {
+                                        indent: { left: 1440, hanging: 360 },
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                ],
+            });
+
+
+            // Function to flush list items into a paragraph
+            const flushList = () => {
+                if (currentListItems.length > 0) {
+                    // This part is tricky with the current docx API version for nested lists directly.
+                    // We'll treat all list items as level 0 for simplicity for now.
+                    // A more complex parser could handle nesting better.
+                    currentListItems.forEach(item => {
+                         const text = item.replace(/^[\s*-]+\s*/, ''); // Clean text
+                         const isIndented = item.startsWith('  -'); // Check for simple indent
+                         docSections.push(new Paragraph({
+                             children: [new TextRun(text)],
+                             numbering: {
+                                 reference: "bullet-numbering",
+                                 level: isIndented ? 1 : 0, // Basic indent level check
+                             },
+                             // Indentation is better handled by the numbering style itself
+                             // indent: isIndented ? { left: 1440 } : { left: 720 },
+                         }));
+                    });
+                    currentListItems = [];
+                }
+            };
+
+            lines.forEach(line => {
+                line = line.trimEnd(); // Remove trailing whitespace
+
+                if (line.startsWith('# ')) { // H1
+                    flushList();
+                    docSections.push(new Paragraph({
+                        children: [new TextRun({ text: line.substring(2), bold: true, size: 32 })], // Larger, bold
+                        heading: HeadingLevel.HEADING_1,
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 200 },
+                    }));
+                } else if (line.startsWith('## ')) { // H2
+                    flushList();
+                    docSections.push(new Paragraph({
+                        children: [new TextRun({ text: line.substring(3), bold: true, size: 28 })], // Slightly smaller, bold
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: { before: 200, after: 100 },
+                    }));
+                } else if (line.startsWith('### ')) { // H3
+                    flushList();
+                     docSections.push(new Paragraph({
+                        children: [new TextRun({ text: line.substring(4), bold: true, size: 24 })],
+                        heading: HeadingLevel.HEADING_3,
+                        spacing: { before: 150, after: 80 },
+                    }));
+                } else if (line.startsWith('- ') || line.startsWith('  - ')) { // List item
+                    currentListItems.push(line);
+                } else if (line.trim() === '') { // Empty line
+                    flushList();
+                    docSections.push(new Paragraph("")); // Add empty paragraph for spacing
+                } else { // Regular paragraph
+                    flushList();
+                    docSections.push(new Paragraph({
+                         children: [new TextRun(line)],
+                         spacing: { after: 100 } // Add some space after paragraphs
+                    }));
+                }
+            });
+            flushList(); // Add any remaining list items
+
+            const doc = new Document({
+                numbering: numbering, // Add the numbering configuration
+                sections: [{
+                    properties: {},
+                    children: docSections,
+                }],
+                 styles: { // Optional: Define default styles
+                     paragraphStyles: [
+                         {
+                             id: "Normal",
+                             name: "Normal",
+                             basedOn: "Normal",
+                             next: "Normal",
+                             quickFormat: true,
+                             run: {
+                                 size: 22, // 11pt font size
+                                 font: "Calibri",
+                             },
+                             paragraph: {
+                                 spacing: { line: 276, after: 100 }, // 1.15 line spacing
+                             },
+                         },
+                     ],
+                 },
+            });
+
+            // Generate blob
+            const blob = await Packer.toBlob(doc);
+
+            // Trigger download
+            const blobUrl = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = blobUrl;
-            // Extract a filename from the H1 title, default otherwise
             const titleMatch = briefText.match(/^# (.*)/m);
             const filename = titleMatch ? `${titleMatch[1].replace(/[^a-z0-9]/gi, '_').toLowerCase()}.docx` : 'strategic_insights_brief.docx';
             link.download = filename;
-            document.body.appendChild(link); // Required for Firefox
+            document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            URL.revokeObjectURL(blobUrl); // Clean up
+            URL.revokeObjectURL(blobUrl);
 
             copyStatus.textContent = "DOCX downloaded!";
-             setTimeout(() => { copyStatus.style.display = 'none'; }, 2500);
+            setTimeout(() => { copyStatus.style.display = 'none'; }, 2500);
 
         } catch (error) {
             console.error('Error generating DOCX:', error);
             alert('Failed to generate .docx file.');
             copyStatus.textContent = "DOCX generation failed.";
-             setTimeout(() => { copyStatus.style.display = 'none'; }, 2500);
+            setTimeout(() => { copyStatus.style.display = 'none'; }, 2500);
         }
     }
 
@@ -310,10 +413,9 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         console.log("All topics processed. Preparing for brief generation.");
-        // Display thank you message first
         questionTextElement.textContent = 'Thank you! All topics are covered. I will now use your input to generate the strategic insights brief.';
         answerInputElement.disabled = true;
-        answerInputElement.style.display = 'none'; // Hide the answer input box
+        answerInputElement.style.display = 'none';
         nextBtn.style.display = 'none';
         skipQuestionBtn.style.display = 'none';
         skipTopicBtn.style.display = 'none';
@@ -574,20 +676,18 @@ document.addEventListener('DOMContentLoaded', () => {
                  downloadDocxBtn.disabled = false;
             } else {
                  console.warn("html-to-docx library (window.htmlDocx) not ready when brief generated.");
-                 // Keep button disabled, maybe add a tooltip or message later if needed
                  downloadDocxBtn.disabled = true;
             }
         } else {
             briefOutputCode.textContent = 'Brief generation failed.';
             copyBriefBtn.disabled = true;
-            downloadDocxBtn.disabled = true; // Keep download disabled
+            downloadDocxBtn.disabled = true;
         }
         // generateBriefBtn.disabled = false;
     });
 
     copyBriefBtn.addEventListener('click', copyBriefToClipboard);
 
-    // Add listener for the download button
     downloadDocxBtn.addEventListener('click', downloadBriefAsDocx);
 
     // Removed temporary test button listener
@@ -599,7 +699,7 @@ document.addEventListener('DOMContentLoaded', () => {
     translationOutputDiv.style.display = 'none';
     generateBriefBtn.style.display = 'none';
     copyBriefBtn.disabled = true;
-    downloadDocxBtn.disabled = true; // Disable download initially
+    downloadDocxBtn.disabled = true;
     topicSidebar.style.display = 'none';
     skipQuestionBtn.style.display = 'none';
     skipTopicBtn.style.display = 'none';
