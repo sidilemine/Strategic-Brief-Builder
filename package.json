@@ -4,7 +4,7 @@
   "description": "Web tool to build strategic briefs using AI.",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "esbuild script.js --bundle --outfile=bundle.js --format=iife --minify"
+    "build": "npx esbuild script.js --bundle --outfile=bundle.js --format=iife --minify"
   },
   "author": "",
   "license": "ISC",
