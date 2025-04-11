@@ -592,9 +592,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const testDocxBtn = document.getElementById('test-docx-btn');
     if (testDocxBtn) {
         testDocxBtn.addEventListener('click', () => {
-            console.log("Testing DOCX download...");
-            // Simulate having brief content
-            const sampleBrief = `# Strategic Brief: Sample Test
+            // Add a short delay to allow CDN script to potentially load
+            setTimeout(() => {
+                console.log("Testing DOCX download (after delay)...");
+                // Simulate having brief content
+                const sampleBrief = `# Strategic Brief: Sample Test
 
 ## Section One
 This is the first paragraph of section one.
@@ -619,11 +621,12 @@ This is a paragraph after the list.`;
             } else {
                  downloadDocxBtn.disabled = true;
                  console.warn("html-to-docx library not ready for test.");
-            }
+                }
 
 
-            // Call the download function
-            downloadBriefAsDocx();
+                // Call the download function
+                downloadBriefAsDocx();
+            }, 500); // Wait 500ms before testing
         });
     }
     // --- END TEMP ---
