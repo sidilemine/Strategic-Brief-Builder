@@ -98,17 +98,16 @@ body {
     flex-grow: 1; /* Allow content to take remaining space */
     padding: 30px;
     min-width: 500px; /* Prevent content area from becoming too narrow */
-    /* background-color: #fff; - Inherited from main-container */
-    display: flex; /* Use flex for content layout */
-    flex-direction: column; /* Stack content vertically */
+    display: flex;
+    flex-direction: column;
 }
 
 .privacy-notice {
     font-size: 0.8em;
-    color: #7f8c8d; /* Grey text */
+    color: #7f8c8d;
     text-align: center;
-    padding: 0 15px 15px 15px; /* Padding below */
-    border-bottom: 1px solid #eee; /* Separator */
+    padding: 0 15px 15px 15px;
+    border-bottom: 1px solid #eee;
     margin-bottom: 1.5em;
 }
 .privacy-notice p {
@@ -137,13 +136,12 @@ h2 {
 textarea {
     width: 100%;
     padding: 10px;
-    /* margin-bottom: 15px; Removed, handled by container */
     border: 1px solid #ccc;
     border-radius: 4px;
     box-sizing: border-box;
     font-size: 1em;
-    resize: vertical; /* Allow vertical resize */
-    min-height: 80px; /* Ensure a minimum height */
+    resize: vertical;
+    min-height: 80px;
 }
 
 button {
@@ -167,28 +165,26 @@ button:disabled {
     cursor: not-allowed;
 }
 
-/* Styles for initial action buttons */
 .initial-actions {
     margin-top: 15px;
     display: flex;
-    justify-content: space-between; /* Position buttons apart */
+    justify-content: space-between;
     align-items: center;
 }
 .initial-actions #start-questions-btn {
-     margin-right: 0; /* Remove margin if it's on the left */
+     margin-right: 0;
 }
 .initial-actions .clarify-button {
-    background-color: #1abc9c; /* Teal color for emphasis */
-    margin-left: 10px; /* Add space if needed */
+    background-color: #1abc9c;
+    margin-left: 10px;
     margin-right: 0;
 }
 .initial-actions .clarify-button:hover {
     background-color: #16a085;
 }
 
-/* Styles for skip buttons */
 .skip-button {
-    background-color: #95a5a6; /* Grey background */
+    background-color: #95a5a6;
     font-size: 0.9em;
     padding: 6px 12px;
     margin-top: 5px;
@@ -198,80 +194,110 @@ button:disabled {
 }
 
 #skip-topic-btn {
-    margin-top: auto; /* Push to bottom of sidebar */
+    margin-top: auto;
 }
 
-/* Layout for skip question button */
 .skip-question-layout {
-    align-self: flex-start; /* Align to the left */
-    margin-top: 10px; /* Space below textarea */
+    align-self: flex-start;
+    margin-top: 10px;
     margin-right: 0;
 }
 
-/* Layout for Submit button container */
 .answer-actions {
-    margin-top: 10px; /* Space above submit button */
+    margin-top: 10px;
     display: flex;
-    justify-content: flex-end; /* Align submit button to the right */
+    justify-content: flex-end;
 }
 .answer-actions #next-btn {
-     margin-right: 0; /* Remove default right margin */
+     margin-right: 0;
 }
 
-
-/* Enhanced Brief Output Formatting */
-#brief-output-section pre {
-    white-space: pre-wrap; /* Keep wrapping */
-    word-wrap: break-word; /* Keep word breaking */
-    background-color: #ffffff; /* White background */
-    padding: 30px; /* Increase padding */
-    border-radius: 6px; /* Slightly rounder corners */
-    border: 1px solid #e9ecef; /* Lighter border */
-    max-height: 70vh; /* Allow slightly more height */
+/* --- Styles for Rendered HTML Brief Output --- */
+#brief-output-html {
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+    max-height: 70vh;
     overflow-y: auto;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* System font stack */
-    font-size: 0.95rem; /* Slightly smaller base font */
-    line-height: 1.65; /* Adjust line height */
-    color: #212529; /* Near black text */
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Subtle shadow */
-}
-/* Styling the code element within pre (often used by markdown highlighters, though not strictly necessary here) */
-#brief-output-section pre code {
-    font-family: inherit; /* Inherit the nice sans-serif font */
-    font-size: inherit;
-    background-color: transparent; /* Ensure no background override */
-    padding: 0; /* Reset padding */
-    color: inherit; /* Inherit color */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 0.95rem;
+    line-height: 1.65;
+    color: #212529;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-/* Style the container div as well */
+#brief-output-html h1 {
+    font-size: 1.8em; /* Adjust as needed */
+    text-align: center;
+    margin-bottom: 1.2em;
+    color: #2c3e50;
+}
+
+#brief-output-html h2 {
+    font-size: 1.4em; /* Adjust as needed */
+    margin-top: 1.5em;
+    margin-bottom: 0.8em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid #ced4da;
+    color: #2c3e50;
+}
+
+#brief-output-html h3 {
+    font-size: 1.1em; /* Adjust as needed */
+    margin-top: 1.2em;
+    margin-bottom: 0.6em;
+    color: #343a40;
+}
+
+#brief-output-html p {
+    margin-bottom: 1em;
+}
+
+#brief-output-html ul {
+    list-style: disc; /* Use standard disc bullets */
+    margin-left: 25px; /* Indent lists */
+    margin-bottom: 1em;
+}
+
+#brief-output-html li {
+    margin-bottom: 0.5em;
+}
+
+/* Remove styles for the old pre/code block */
+/*
+#brief-output-section pre { ... }
+#brief-output-section pre code { ... }
+*/
+
+/* Style the container div */
 .output-section {
     margin-top: 30px;
-    padding: 25px; /* Adjust padding */
-    background-color: #f1f3f5; /* Slightly different background */
-    border-radius: 8px; /* Match main container */
+    padding: 25px;
+    background-color: #f1f3f5;
+    border-radius: 8px;
     border: 1px solid #dee2e6;
 }
-.output-section h2 { /* Style the "Generated Brief" heading */
+.output-section h2 { /* Style the "3. Generated Brief" heading */
      margin-top: 0;
      margin-bottom: 20px;
      padding-bottom: 10px;
-     border-bottom-color: #ced4da; /* Match border */
+     border-bottom-color: #ced4da;
 }
 .output-actions { /* Style the button container */
      border-top: 1px solid #dee2e6;
      padding-top: 20px;
      margin-top: 20px;
-     text-align: right; /* Align buttons right */
+     text-align: right;
 }
 .output-actions button {
-     margin-left: 10px; /* Space buttons */
+     margin-left: 10px;
      margin-right: 0;
 }
 
 
 /* Responsive adjustments */
-@media (max-width: 900px) { /* Adjust breakpoint for sidebar */
+@media (max-width: 900px) {
     .main-container {
         flex-direction: column;
         margin: 10px;
@@ -293,9 +319,8 @@ button:disabled {
     }
     .content-container {
         padding: 20px;
-        min-width: unset; /* Remove min-width on mobile */
+        min-width: unset;
     }
-    /* Keep other mobile styles */
      h1 {
         font-size: 1.8em;
     }
@@ -306,29 +331,36 @@ button:disabled {
         padding: 8px 15px;
         font-size: 0.9em;
     }
-    /* Mobile button layouts */
      .initial-actions {
-         flex-direction: column; /* Stack initial buttons */
+         flex-direction: column;
      }
      .initial-actions button {
          width: 100%;
          margin: 5px 0;
      }
      .skip-question-layout {
-         width: 100%; /* Full width skip button */
+         width: 100%;
          margin-bottom: 10px;
          text-align: center;
      }
      .answer-actions {
-        justify-content: stretch; /* Full width submit button */
+        justify-content: stretch;
     }
      .answer-actions button {
         width: 100%;
-        margin-bottom: 0; /* No margin below last button */
+        margin-bottom: 0;
     }
      #generate-brief-btn {
          float: none;
          width: 100%;
          margin-top: 15px;
      }
+     /* Adjust output formatting for mobile */
+     #brief-output-html {
+         padding: 15px;
+         font-size: 0.9rem;
+     }
+     #brief-output-html h1 { font-size: 1.5em; }
+     #brief-output-html h2 { font-size: 1.2em; }
+     #brief-output-html h3 { font-size: 1.0em; }
 }

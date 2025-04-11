@@ -1,5 +1,5 @@
-// Import the docx library components - REMOVED
-// import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Numbering, Indent } from 'docx';
+// Import the docx library components - Parcel should bundle these
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Numbering, Indent } from 'docx';
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
@@ -25,12 +25,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const skipTopicBtn = document.getElementById('skip-topic-btn');
     const generateBriefBtn = document.getElementById('generate-brief-btn');
 
-    const briefOutputCode = document.getElementById('brief-output');
+    // Updated brief output element reference
+    const briefOutputHtml = document.getElementById('brief-output-html');
     const copyBriefBtn = document.getElementById('copy-brief-btn');
-    // Removed downloadDocxBtn reference
-    // const downloadDocxBtn = document.getElementById('download-docx-btn');
-    // Removed copyStatus reference
-    // const copyStatus = document.getElementById('copy-status');
+    const downloadDocxBtn = document.getElementById('download-docx-btn');
+    const copyStatus = document.getElementById('copy-status');
 
     // --- State ---
     let isLoading = false;
@@ -38,6 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let topics = [];
     let currentTopic = null;
     let currentAssistantQuestion = null;
+    let rawGeneratedBrief = ''; // Store the raw markdown brief
 
     // --- Constants ---
     const TOPIC_DEFINITIONS = [
@@ -53,20 +53,237 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Functions ---
 
     function copyBriefToClipboard() {
-        const briefText = briefOutputCode.textContent;
+        // Get text content from the HTML div
+        const briefText = briefOutputHtml.textContent;
         navigator.clipboard.writeText(briefText).then(() => {
-            // Removed copy status update
-            // copyStatus.textContent = "Brief copied to clipboard!";
-            // copyStatus.style.display = 'inline';
-            // setTimeout(() => { copyStatus.style.display = 'none'; }, 2000);
-            alert('Brief copied to clipboard!'); // Use simple alert instead
+            alert('Brief copied to clipboard!');
         }).catch(err => {
             console.error('Failed to copy brief: ', err);
             alert('Failed to copy brief. Please copy manually.');
         });
     }
 
-    // --- Removed downloadBriefAsDocx function ---
+    // --- Function to render Markdown-like text as HTML ---
+    function renderBriefHtml(markdownText) {
+        if (!markdownText) {
+            briefOutputHtml.innerHTML = '<p>Error: No brief content received.</p>';
+            return;
+        }
+
+        // Store raw text for potential use (e.g., DOCX generation)
+        rawGeneratedBrief = markdownText;
+
+        // Basic Markdown-to-HTML conversion
+        let htmlContent = markdownText
+            .replace(/^# (.*$)/gm, '<h1>$1</h1>')       // H1
+            .replace(/^## (.*$)/gm, '<h2>$1</h2>')      // H2
+            .replace(/^### (.*$)/gm, '<h3>$1</h3>')     // H3
+            .split('\n') // Split into lines to handle lists and paragraphs
+            .map(line => line.trimEnd()) // Trim trailing space
+            .reduce((acc, line) => {
+                if (line.startsWith('- ') || line.startsWith('  - ')) {
+                    const text = line.replace(/^[\s*-]+\s*/, '');
+                    const isIndented = line.startsWith('  -');
+                    // Check if previous element was the end of a list
+                    if (acc.endsWith('</ul>')) {
+                         // Remove closing tag to continue list
+                         acc = acc.substring(0, acc.length - 5);
+                         acc += `<li style="margin-left: ${isIndented ? '20px' : '0'};">${text}</li>`;
+                    } else if (acc.endsWith('</li>')) {
+                         // Continue existing list
+                         acc += `<li style="margin-left: ${isIndented ? '20px' : '0'};">${text}</li>`;
+                    } else {
+                         // Start a new list
+                         acc += `<ul><li style="margin-left: ${isIndented ? '20px' : '0'};">${text}</li>`;
+                    }
+                } else {
+                    // If previous line was a list item, close the list
+                    if (acc.endsWith('</li>')) {
+                        acc += '</ul>';
+                    }
+                    // Add paragraph or heading (already converted) or break
+                    if (line.startsWith('<h')) {
+                         acc += line; // Add heading tags directly
+                    } else if (line.trim() === '') {
+                         acc += '<br>'; // Use <br> for empty lines for spacing
+                    } else {
+                         acc += `<p>${line}</p>`; // Wrap other lines in <p>
+                    }
+                }
+                return acc;
+            }, '');
+
+        // Close any open list at the end
+        if (htmlContent.endsWith('</li>')) {
+            htmlContent += '</ul>';
+        }
+
+        briefOutputHtml.innerHTML = htmlContent;
+    }
+
+
+    // --- Function to generate and download DOCX using 'docx' library ---
+    async function downloadBriefAsDocx() {
+        // Use the stored raw markdown text for DOCX generation
+        const briefText = rawGeneratedBrief;
+        if (!briefText || briefText === 'Generating Brief... Please wait.' || briefText === 'Brief generation failed.') {
+            alert('Brief content is not available for download.');
+            return;
+        }
+
+        try {
+            copyStatus.textContent = "Generating DOCX...";
+            copyStatus.style.display = 'inline';
+
+            const lines = briefText.split('\n');
+            const docSections = [];
+            let currentListItems = [];
+
+            // Define numbering for lists (Corrected Syntax)
+            const numbering = new Numbering({
+                config: [
+                    {
+                        reference: "bullet-numbering",
+                        levels: [
+                            {
+                                level: 0,
+                                format: "bullet",
+                                text: "\u2022", // Bullet character
+                                alignment: AlignmentType.LEFT,
+                                style: {
+                                    paragraph: {
+                                        indent: { left: 720, hanging: 360 },
+                                    },
+                                },
+                            },
+                             {
+                                level: 1, // For indented lists
+                                format: "bullet",
+                                text: "\u25E6", // White bullet
+                                alignment: AlignmentType.LEFT,
+                                style: {
+                                    paragraph: {
+                                        indent: { left: 1440, hanging: 360 },
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                ], // End of config array
+            }); // End of new Numbering call
+
+            const flushList = () => {
+                if (currentListItems.length > 0) {
+                    currentListItems.forEach(item => {
+                         const text = item.replace(/^[\s*-]+\s*/, '');
+                         const isIndented = item.startsWith('  -');
+                         docSections.push(new Paragraph({
+                             children: [new TextRun(text)],
+                             numbering: {
+                                 reference: "bullet-numbering",
+                                 level: isIndented ? 1 : 0,
+                             },
+                         }));
+                    });
+                    currentListItems = [];
+                }
+            };
+
+            lines.forEach(line => {
+                line = line.trimEnd();
+
+                if (line.startsWith('# ')) {
+                    flushList();
+                    docSections.push(new Paragraph({
+                        children: [new TextRun({ text: line.substring(2), bold: true, size: 32 })],
+                        heading: HeadingLevel.HEADING_1,
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 200 },
+                    }));
+                } else if (line.startsWith('## ')) {
+                    flushList();
+                    docSections.push(new Paragraph({
+                        children: [new TextRun({ text: line.substring(3), bold: true, size: 28 })],
+                        heading: HeadingLevel.HEADING_2,
+                        spacing: { before: 200, after: 100 },
+                    }));
+                } else if (line.startsWith('### ')) {
+                    flushList();
+                     docSections.push(new Paragraph({
+                        children: [new TextRun({ text: line.substring(4), bold: true, size: 24 })],
+                        heading: HeadingLevel.HEADING_3,
+                        spacing: { before: 150, after: 80 },
+                    }));
+                } else if (line.startsWith('- ') || line.startsWith('  - ')) {
+                    currentListItems.push(line);
+                } else if (line.trim() === '') {
+                    flushList();
+                    docSections.push(new Paragraph(""));
+                } else {
+                    flushList();
+                    docSections.push(new Paragraph({
+                         children: [new TextRun(line)],
+                         spacing: { after: 100 }
+                    }));
+                }
+            });
+            flushList(); // Add any remaining list items at the end
+
+            // Create the document with numbering and styles
+            const doc = new Document({
+                numbering: numbering, // Use the defined numbering
+                sections: [{
+                    properties: {},
+                    children: docSections,
+                }],
+                 styles: { // Use default styles
+                     paragraphStyles: [
+                         {
+                             id: "Normal",
+                             name: "Normal",
+                             basedOn: "Normal",
+                             next: "Normal",
+                             quickFormat: true,
+                             run: {
+                                 size: 22,
+                                 font: "Calibri",
+                             },
+                             paragraph: {
+                                 spacing: { line: 276, after: 100 },
+                             },
+                         },
+                     ],
+                 },
+            });
+
+            const blob = await Packer.toBlob(doc);
+
+            const blobUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = blobUrl;
+            const titleMatch = briefText.match(/^# (.*)/m);
+            const filename = titleMatch ? `${titleMatch[1].replace(/[^a-z0-9]/gi, '_').toLowerCase()}.docx` : 'strategic_insights_brief.docx';
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+
+            copyStatus.textContent = "DOCX downloaded!";
+            setTimeout(() => { copyStatus.style.display = 'none'; }, 2500);
+
+        } catch (error) {
+            console.error('Error generating DOCX:', error);
+            if (error instanceof ReferenceError && (error.message.includes("Document is not defined") || error.message.includes("Packer is not defined"))) {
+                 alert('Error: DOCX generation components failed to load. Build might be misconfigured.');
+                 console.error("Bundled 'docx' library components not found. Check build process.");
+            } else {
+                 alert('Failed to generate .docx file.');
+            }
+            copyStatus.textContent = "DOCX generation failed.";
+            setTimeout(() => { copyStatus.style.display = 'none'; }, 2500);
+        }
+    }
 
 
     function initializeTopics() {
@@ -278,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else if (payload.type === 'check_topic_completion') {
              console.log(`Checking completion for ${payload.topic}...`);
         } else if (payload.type === 'generate') {
-            briefOutputCode.textContent = 'Generating Brief... Please wait.';
+            briefOutputHtml.innerHTML = '<p>Generating Brief... Please wait.</p>';
         } else if (payload.type === 'translate') {
             clarificationOptionsContainer.innerHTML = '<p>Translating...</p>';
         }
@@ -317,7 +534,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  }
             }
             alert(`Error: ${errorDetails}`);
-            if (payload.type === 'generate') briefOutputCode.textContent = 'Brief generation failed.';
+            if (payload.type === 'generate') briefOutputHtml.innerHTML = '<p>Brief generation failed.</p>';
             if (payload.type === 'translate') clarificationOptionsContainer.innerHTML = '<p>Translation failed.</p>';
             if (payload.type.includes('question') || payload.type.includes('completion')) {
                  questionTextElement.textContent = 'An error occurred fetching the next step. Please try again.';
@@ -499,7 +716,8 @@ document.addEventListener('DOMContentLoaded', () => {
         questionSection.style.display = 'none';
         topicSidebar.style.display = 'none';
         briefOutputSection.style.display = 'block';
-        briefOutputCode.textContent = 'Generating Brief... Please wait.';
+        // Update loading indicator for HTML display
+        briefOutputHtml.innerHTML = '<p>Generating Brief... Please wait.</p>';
         generateBriefBtn.disabled = true;
 
         const generatedBrief = await callOpenAIProxy({
@@ -508,22 +726,21 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (generatedBrief) {
-            briefOutputCode.textContent = generatedBrief;
+            // Render the brief as HTML
+            renderBriefHtml(generatedBrief);
             copyBriefBtn.disabled = false;
-            // Removed DOCX button enable/disable logic
-            // downloadDocxBtn.disabled = false;
+            downloadDocxBtn.disabled = false; // Enable download button
         } else {
-            briefOutputCode.textContent = 'Brief generation failed.';
+            briefOutputHtml.innerHTML = '<p>Brief generation failed.</p>'; // Show error in HTML div
             copyBriefBtn.disabled = true;
-            // downloadDocxBtn.disabled = true;
+            downloadDocxBtn.disabled = true;
         }
         // generateBriefBtn.disabled = false;
     });
 
     copyBriefBtn.addEventListener('click', copyBriefToClipboard);
 
-    // Removed listener for download button
-    // downloadDocxBtn.addEventListener('click', downloadBriefAsDocx);
+    downloadDocxBtn.addEventListener('click', downloadBriefAsDocx);
 
 
     // --- Initial Setup ---
@@ -532,7 +749,7 @@ document.addEventListener('DOMContentLoaded', () => {
     translationOutputDiv.style.display = 'none';
     generateBriefBtn.style.display = 'none';
     copyBriefBtn.disabled = true;
-    // downloadDocxBtn.disabled = true; // Button removed from HTML
+    downloadDocxBtn.disabled = true;
     topicSidebar.style.display = 'none';
     skipQuestionBtn.style.display = 'none';
     skipTopicBtn.style.display = 'none';
