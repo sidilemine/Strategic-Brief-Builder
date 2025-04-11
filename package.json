@@ -3,16 +3,11 @@
   "version": "1.0.0",
   "description": "Web tool to build strategic briefs using AI.",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "parcel build index.html --dist-dir public --no-cache"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "buffer": "^6.0.3",
     "openai": "^4.0.0"
-  },
-  "devDependencies": {
-    "parcel": "^2.14.4"
   }
 }

@@ -1,5 +1,4 @@
-// Import the docx library components - Parcel should bundle these
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Numbering, Indent } from 'docx';
+// Removed docx import as download functionality is removed
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
