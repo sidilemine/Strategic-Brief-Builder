@@ -668,11 +668,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (generatedBrief) {
             briefOutputCode.textContent = generatedBrief;
             copyBriefBtn.disabled = false;
-            // Only enable download if library is loaded on window
-            if (typeof window.htmlDocx !== 'undefined') { // Check window object
+            // Only enable download if library components are available
+            if (typeof Document !== 'undefined' && typeof Packer !== 'undefined') {
                  downloadDocxBtn.disabled = false;
             } else {
-                 console.warn("html-to-docx library (window.htmlDocx) not ready when brief generated.");
+                 console.warn("docx library components not ready when brief generated.");
                  downloadDocxBtn.disabled = true;
             }
         } else {
