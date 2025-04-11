@@ -221,24 +221,52 @@ button:disabled {
 
 /* Enhanced Brief Output Formatting */
 #brief-output-section pre {
-    white-space: pre-wrap;
-    word-wrap: break-word;
-    background-color: #f8f9fa; /* Lighter background */
-    padding: 25px; /* More padding */
-    border-radius: 5px;
-    border: 1px solid #dee2e6; /* Subtle border */
-    max-height: 60vh; /* Adjust max height */
+    white-space: pre-wrap; /* Keep wrapping */
+    word-wrap: break-word; /* Keep word breaking */
+    background-color: #ffffff; /* White background */
+    padding: 30px; /* Increase padding */
+    border-radius: 6px; /* Slightly rounder corners */
+    border: 1px solid #e9ecef; /* Lighter border */
+    max-height: 70vh; /* Allow slightly more height */
     overflow-y: auto;
-    font-family: 'Georgia', serif; /* More formal font */
-    font-size: 1rem; /* Adjust font size */
-    line-height: 1.7; /* Improve readability */
-    color: #343a40; /* Darker text color */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* System font stack */
+    font-size: 0.95rem; /* Slightly smaller base font */
+    line-height: 1.65; /* Adjust line height */
+    color: #212529; /* Near black text */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05); /* Subtle shadow */
 }
-/* Attempt to style markdown-like elements (limited) */
+/* Styling the code element within pre (often used by markdown highlighters, though not strictly necessary here) */
 #brief-output-section pre code {
-    font-family: inherit; /* Use parent font */
+    font-family: inherit; /* Inherit the nice sans-serif font */
     font-size: inherit;
-    /* Cannot reliably style h2, lists etc. within pre with CSS alone */
+    background-color: transparent; /* Ensure no background override */
+    padding: 0; /* Reset padding */
+    color: inherit; /* Inherit color */
+}
+
+/* Style the container div as well */
+.output-section {
+    margin-top: 30px;
+    padding: 25px; /* Adjust padding */
+    background-color: #f1f3f5; /* Slightly different background */
+    border-radius: 8px; /* Match main container */
+    border: 1px solid #dee2e6;
+}
+.output-section h2 { /* Style the "Generated Brief" heading */
+     margin-top: 0;
+     margin-bottom: 20px;
+     padding-bottom: 10px;
+     border-bottom-color: #ced4da; /* Match border */
+}
+.output-actions { /* Style the button container */
+     border-top: 1px solid #dee2e6;
+     padding-top: 20px;
+     margin-top: 20px;
+     text-align: right; /* Align buttons right */
+}
+.output-actions button {
+     margin-left: 10px; /* Space buttons */
+     margin-right: 0;
 }
 
 
