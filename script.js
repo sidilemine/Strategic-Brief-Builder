@@ -1,5 +1,5 @@
-// Import the docx library components - Parcel should bundle these
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Numbering, Indent } from 'docx';
+// Import the docx library components - REMOVED
+// import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Numbering, Indent } from 'docx';
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
@@ -27,8 +27,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const briefOutputCode = document.getElementById('brief-output');
     const copyBriefBtn = document.getElementById('copy-brief-btn');
-    const downloadDocxBtn = document.getElementById('download-docx-btn');
-    const copyStatus = document.getElementById('copy-status');
+    // Removed downloadDocxBtn reference
+    // const downloadDocxBtn = document.getElementById('download-docx-btn');
+    // Removed copyStatus reference
+    // const copyStatus = document.getElementById('copy-status');
 
     // --- State ---
     let isLoading = false;
@@ -53,178 +55,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function copyBriefToClipboard() {
         const briefText = briefOutputCode.textContent;
         navigator.clipboard.writeText(briefText).then(() => {
-            copyStatus.textContent = "Brief copied to clipboard!";
-            copyStatus.style.display = 'inline';
-            setTimeout(() => { copyStatus.style.display = 'none'; }, 2000);
+            // Removed copy status update
+            // copyStatus.textContent = "Brief copied to clipboard!";
+            // copyStatus.style.display = 'inline';
+            // setTimeout(() => { copyStatus.style.display = 'none'; }, 2000);
+            alert('Brief copied to clipboard!'); // Use simple alert instead
         }).catch(err => {
             console.error('Failed to copy brief: ', err);
             alert('Failed to copy brief. Please copy manually.');
         });
     }
 
-    // --- Function to generate and download DOCX using 'docx' library ---
-    async function downloadBriefAsDocx() {
-        const briefText = briefOutputCode.textContent;
-        if (!briefText || briefText === 'Generating Brief... Please wait.' || briefText === 'Brief generation failed.') {
-            alert('Brief content is not available for download.');
-            return;
-        }
-
-        // Removed check for window.htmlDocx - rely on import and bundling
-
-        try {
-            copyStatus.textContent = "Generating DOCX...";
-            copyStatus.style.display = 'inline';
-
-            const lines = briefText.split('\n');
-            const docSections = [];
-            let currentListItems = [];
-
-            // Define numbering for lists
-            const numbering = new Numbering({
-                config: [
-                    {
-                        reference: "bullet-numbering",
-                        levels: [
-                            {
-                                level: 0,
-                                format: "bullet",
-                                text: "\u2022", // Bullet character
-                                alignment: AlignmentType.LEFT,
-                                style: {
-                                    paragraph: {
-                                        indent: { left: 720, hanging: 360 },
-                                    },
-                                },
-                            },
-                             {
-                                level: 1, // For indented lists
-                                format: "bullet",
-                                text: "\u25E6", // White bullet
-                                alignment: AlignmentType.LEFT,
-                                style: {
-                                    paragraph: {
-                                        indent: { left: 1440, hanging: 360 },
-                                    },
-                                },
-                            },
-                        ],
-                    },
-                ],
-            });
-
-            const flushList = () => {
-                if (currentListItems.length > 0) {
-                    currentListItems.forEach(item => {
-                         const text = item.replace(/^[\s*-]+\s*/, '');
-                         const isIndented = item.startsWith('  -');
-                         docSections.push(new Paragraph({
-                             children: [new TextRun(text)],
-                             numbering: {
-                                 reference: "bullet-numbering",
-                                 level: isIndented ? 1 : 0,
-                             },
-                         }));
-                    });
-                    currentListItems = [];
-                }
-            };
-
-            lines.forEach(line => {
-                line = line.trimEnd();
-
-                if (line.startsWith('# ')) {
-                    flushList();
-                    docSections.push(new Paragraph({
-                        children: [new TextRun({ text: line.substring(2), bold: true, size: 32 })],
-                        heading: HeadingLevel.HEADING_1,
-                        alignment: AlignmentType.CENTER,
-                        spacing: { after: 200 },
-                    }));
-                } else if (line.startsWith('## ')) {
-                    flushList();
-                    docSections.push(new Paragraph({
-                        children: [new TextRun({ text: line.substring(3), bold: true, size: 28 })],
-                        heading: HeadingLevel.HEADING_2,
-                        spacing: { before: 200, after: 100 },
-                    }));
-                } else if (line.startsWith('### ')) {
-                    flushList();
-                     docSections.push(new Paragraph({
-                        children: [new TextRun({ text: line.substring(4), bold: true, size: 24 })],
-                        heading: HeadingLevel.HEADING_3,
-                        spacing: { before: 150, after: 80 },
-                    }));
-                } else if (line.startsWith('- ') || line.startsWith('  - ')) {
-                    currentListItems.push(line);
-                } else if (line.trim() === '') {
-                    flushList();
-                    docSections.push(new Paragraph(""));
-                } else {
-                    flushList();
-                    docSections.push(new Paragraph({
-                         children: [new TextRun(line)],
-                         spacing: { after: 100 }
-                    }));
-                }
-            });
-            flushList();
-
-            const doc = new Document({
-                numbering: numbering,
-                sections: [{
-                    properties: {},
-                    children: docSections,
-                }],
-                 styles: {
-                     paragraphStyles: [
-                         {
-                             id: "Normal",
-                             name: "Normal",
-                             basedOn: "Normal",
-                             next: "Normal",
-                             quickFormat: true,
-                             run: {
-                                 size: 22,
-                                 font: "Calibri",
-                             },
-                             paragraph: {
-                                 spacing: { line: 276, after: 100 },
-                             },
-                         },
-                     ],
-                 },
-            });
-
-            const blob = await Packer.toBlob(doc);
-
-            const blobUrl = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = blobUrl;
-            const titleMatch = briefText.match(/^# (.*)/m);
-            const filename = titleMatch ? `${titleMatch[1].replace(/[^a-z0-9]/gi, '_').toLowerCase()}.docx` : 'strategic_insights_brief.docx';
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(blobUrl);
-
-            copyStatus.textContent = "DOCX downloaded!";
-            setTimeout(() => { copyStatus.style.display = 'none'; }, 2500);
-
-        } catch (error) {
-            console.error('Error generating DOCX:', error);
-            // Check if error is due to docx components not being defined
-            if (error instanceof ReferenceError && (error.message.includes("Document is not defined") || error.message.includes("Packer is not defined"))) {
-                 alert('Error: DOCX generation components failed to load. Build might be misconfigured.');
-                 console.error("Bundled 'docx' library components not found. Check build process.");
-            } else {
-                 alert('Failed to generate .docx file.');
-            }
-            copyStatus.textContent = "DOCX generation failed.";
-            setTimeout(() => { copyStatus.style.display = 'none'; }, 2500);
-        }
-    }
+    // --- Removed downloadBriefAsDocx function ---
 
 
     function initializeTopics() {
@@ -668,26 +510,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (generatedBrief) {
             briefOutputCode.textContent = generatedBrief;
             copyBriefBtn.disabled = false;
-            // Only enable download if library components are available
-            if (typeof Document !== 'undefined' && typeof Packer !== 'undefined') {
-                 downloadDocxBtn.disabled = false;
-            } else {
-                 console.warn("docx library components not ready when brief generated.");
-                 downloadDocxBtn.disabled = true;
-            }
+            // Removed DOCX button enable/disable logic
+            // downloadDocxBtn.disabled = false;
         } else {
             briefOutputCode.textContent = 'Brief generation failed.';
             copyBriefBtn.disabled = true;
-            downloadDocxBtn.disabled = true;
+            // downloadDocxBtn.disabled = true;
         }
         // generateBriefBtn.disabled = false;
     });
 
     copyBriefBtn.addEventListener('click', copyBriefToClipboard);
 
-    downloadDocxBtn.addEventListener('click', downloadBriefAsDocx);
-
-    // Removed temporary test button listener
+    // Removed listener for download button
+    // downloadDocxBtn.addEventListener('click', downloadBriefAsDocx);
 
 
     // --- Initial Setup ---
@@ -696,7 +532,7 @@ document.addEventListener('DOMContentLoaded', () => {
     translationOutputDiv.style.display = 'none';
     generateBriefBtn.style.display = 'none';
     copyBriefBtn.disabled = true;
-    downloadDocxBtn.disabled = true;
+    // downloadDocxBtn.disabled = true; // Button removed from HTML
     topicSidebar.style.display = 'none';
     skipQuestionBtn.style.display = 'none';
     skipTopicBtn.style.display = 'none';
