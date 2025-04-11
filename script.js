@@ -687,48 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     downloadDocxBtn.addEventListener('click', downloadBriefAsDocx);
 
-    // Re-added temporary test button listener
-    const testDocxBtn = document.getElementById('test-docx-btn');
-    if (testDocxBtn) {
-        testDocxBtn.addEventListener('click', () => {
-            // Add a short delay to allow CDN script to potentially load
-            setTimeout(() => {
-                console.log("Testing DOCX download (after delay)...");
-                // Simulate having brief content
-                const sampleBrief = `# Strategic Brief: Sample Test
-
-## Section One
-This is the first paragraph of section one.
-It has multiple lines.
-
-## Section Two
-- This is a list item.
-- This is another list item.
-  - This is an indented item (may not format perfectly in DOCX).
-- Back to the main list.
-
-This is a paragraph after the list.`;
-
-            // Put content into the output area
-            briefOutputCode.textContent = sampleBrief;
-            // Make output section visible if hidden
-            briefOutputSection.style.display = 'block';
-            // Ensure copy/download buttons are enabled for the test
-            copyBriefBtn.disabled = false;
-            // Check for bundled library components instead of window object
-            if (typeof Document !== 'undefined' && typeof Packer !== 'undefined') {
-                 downloadDocxBtn.disabled = false;
-            } else {
-                 downloadDocxBtn.disabled = true;
-                 console.warn("docx library components not ready for test.");
-                }
-
-
-                // Call the download function
-                downloadBriefAsDocx();
-            }, 500); // Wait 500ms before testing
-        });
-    }
+    // Removed temporary test button listener
 
 
     // --- Initial Setup ---
