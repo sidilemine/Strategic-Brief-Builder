@@ -1,7 +1,5 @@
-// Import the docx library components
+// Import the docx library components - Parcel should bundle these
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Numbering, Indent } from 'docx';
-// Note: We might not need the direct import if esbuild handles it, but keep for clarity.
-// If build fails, remove this line and rely on esbuild finding the module.
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
@@ -72,6 +70,8 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Removed check for window.htmlDocx
+
         try {
             copyStatus.textContent = "Generating DOCX...";
             copyStatus.style.display = 'inline';
@@ -93,14 +93,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                 alignment: AlignmentType.LEFT,
                                 style: {
                                     paragraph: {
-                                        indent: { left: 720, hanging: 360 }, // Standard bullet indent (720 = 0.5 inch)
+                                        indent: { left: 720, hanging: 360 },
                                     },
                                 },
                             },
                              {
                                 level: 1, // For indented lists
                                 format: "bullet",
-                                text: "\u25E6", // White bullet or other character
+                                text: "\u25E6", // White bullet
                                 alignment: AlignmentType.LEFT,
                                 style: {
                                     paragraph: {
@@ -113,24 +113,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 ],
             });
 
-
-            // Function to flush list items into a paragraph
             const flushList = () => {
                 if (currentListItems.length > 0) {
-                    // This part is tricky with the current docx API version for nested lists directly.
-                    // We'll treat all list items as level 0 for simplicity for now.
-                    // A more complex parser could handle nesting better.
                     currentListItems.forEach(item => {
-                         const text = item.replace(/^[\s*-]+\s*/, ''); // Clean text
-                         const isIndented = item.startsWith('  -'); // Check for simple indent
+                         const text = item.replace(/^[\s*-]+\s*/, '');
+                         const isIndented = item.startsWith('  -');
                          docSections.push(new Paragraph({
                              children: [new TextRun(text)],
                              numbering: {
                                  reference: "bullet-numbering",
-                                 level: isIndented ? 1 : 0, // Basic indent level check
+                                 level: isIndented ? 1 : 0,
                              },
-                             // Indentation is better handled by the numbering style itself
-                             // indent: isIndented ? { left: 1440 } : { left: 720 },
                          }));
                     });
                     currentListItems = [];
@@ -138,52 +131,52 @@ document.addEventListener('DOMContentLoaded', () => {
             };
 
             lines.forEach(line => {
-                line = line.trimEnd(); // Remove trailing whitespace
+                line = line.trimEnd();
 
-                if (line.startsWith('# ')) { // H1
+                if (line.startsWith('# ')) {
                     flushList();
                     docSections.push(new Paragraph({
-                        children: [new TextRun({ text: line.substring(2), bold: true, size: 32 })], // Larger, bold
+                        children: [new TextRun({ text: line.substring(2), bold: true, size: 32 })],
                         heading: HeadingLevel.HEADING_1,
                         alignment: AlignmentType.CENTER,
                         spacing: { after: 200 },
                     }));
-                } else if (line.startsWith('## ')) { // H2
+                } else if (line.startsWith('## ')) {
                     flushList();
                     docSections.push(new Paragraph({
-                        children: [new TextRun({ text: line.substring(3), bold: true, size: 28 })], // Slightly smaller, bold
+                        children: [new TextRun({ text: line.substring(3), bold: true, size: 28 })],
                         heading: HeadingLevel.HEADING_2,
                         spacing: { before: 200, after: 100 },
                     }));
-                } else if (line.startsWith('### ')) { // H3
+                } else if (line.startsWith('### ')) {
                     flushList();
                      docSections.push(new Paragraph({
                         children: [new TextRun({ text: line.substring(4), bold: true, size: 24 })],
                         heading: HeadingLevel.HEADING_3,
                         spacing: { before: 150, after: 80 },
                     }));
-                } else if (line.startsWith('- ') || line.startsWith('  - ')) { // List item
+                } else if (line.startsWith('- ') || line.startsWith('  - ')) {
                     currentListItems.push(line);
-                } else if (line.trim() === '') { // Empty line
+                } else if (line.trim() === '') {
                     flushList();
-                    docSections.push(new Paragraph("")); // Add empty paragraph for spacing
-                } else { // Regular paragraph
+                    docSections.push(new Paragraph(""));
+                } else {
                     flushList();
                     docSections.push(new Paragraph({
                          children: [new TextRun(line)],
-                         spacing: { after: 100 } // Add some space after paragraphs
+                         spacing: { after: 100 }
                     }));
                 }
             });
-            flushList(); // Add any remaining list items
+            flushList();
 
             const doc = new Document({
-                numbering: numbering, // Add the numbering configuration
+                numbering: numbering,
                 sections: [{
                     properties: {},
                     children: docSections,
                 }],
-                 styles: { // Optional: Define default styles
+                 styles: {
                      paragraphStyles: [
                          {
                              id: "Normal",
@@ -192,21 +185,19 @@ document.addEventListener('DOMContentLoaded', () => {
                              next: "Normal",
                              quickFormat: true,
                              run: {
-                                 size: 22, // 11pt font size
+                                 size: 22,
                                  font: "Calibri",
                              },
                              paragraph: {
-                                 spacing: { line: 276, after: 100 }, // 1.15 line spacing
+                                 spacing: { line: 276, after: 100 },
                              },
                          },
                      ],
                  },
             });
 
-            // Generate blob
             const blob = await Packer.toBlob(doc);
 
-            // Trigger download
             const blobUrl = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = blobUrl;
@@ -223,7 +214,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error('Error generating DOCX:', error);
-            alert('Failed to generate .docx file.');
+            // Check if error is due to docx components not being defined
+            if (error instanceof ReferenceError && (error.message.includes("Document is not defined") || error.message.includes("Packer is not defined"))) {
+                 alert('Error: DOCX generation components failed to load. Build might be misconfigured.');
+                 console.error("Bundled 'docx' library components not found. Check build process.");
+            } else {
+                 alert('Failed to generate .docx file.');
+            }
             copyStatus.textContent = "DOCX generation failed.";
             setTimeout(() => { copyStatus.style.display = 'none'; }, 2500);
         }
@@ -672,7 +669,7 @@ document.addEventListener('DOMContentLoaded', () => {
             briefOutputCode.textContent = generatedBrief;
             copyBriefBtn.disabled = false;
             // Only enable download if library is loaded on window
-            if (typeof window.htmlDocx !== 'undefined') {
+            if (typeof window.htmlDocx !== 'undefined') { // Check window object
                  downloadDocxBtn.disabled = false;
             } else {
                  console.warn("html-to-docx library (window.htmlDocx) not ready when brief generated.");

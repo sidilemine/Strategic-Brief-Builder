@@ -69,7 +69,9 @@
         </div>
     </div>
 
-    <!-- Removed CDN link, load bundled script instead -->
-    <script src="bundle.js"></script>
+    <!-- Parcel will automatically inject script tags during build -->
+    <!-- <script src="bundle.js"></script> -->
+    <!-- We still need our original script reference for Parcel to find it -->
+    <script src="script.js" type="module"></script> 
 </body>
 </html>
