@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Removed check for window.htmlDocx
+        // Removed check for window.htmlDocx - rely on import and bundling
 
         try {
             copyStatus.textContent = "Generating DOCX...";
@@ -668,13 +668,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (generatedBrief) {
             briefOutputCode.textContent = generatedBrief;
             copyBriefBtn.disabled = false;
-            // Only enable download if library is loaded on window
-            if (typeof window.htmlDocx !== 'undefined') { // Check window object
-                 downloadDocxBtn.disabled = false;
-            } else {
-                 console.warn("html-to-docx library (window.htmlDocx) not ready when brief generated.");
-                 downloadDocxBtn.disabled = true;
-            }
+            // Simply enable the download button, assuming bundling worked.
+            // The try/catch in downloadBriefAsDocx will handle errors if components aren't defined.
+            downloadDocxBtn.disabled = false;
         } else {
             briefOutputCode.textContent = 'Brief generation failed.';
             copyBriefBtn.disabled = true;
