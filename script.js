@@ -69,12 +69,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // --- MODIFICATION START: Check for library ---
-        // Check if the library is loaded (it's loaded globally from CDN)
-        if (typeof htmlDocx === 'undefined') {
+        // --- MODIFICATION START: Check for library on window object ---
+        // Check if the library is loaded and attached to the window object
+        if (typeof window.htmlDocx === 'undefined') {
             alert('Error: Document generation library (html-docx) failed to load or is not ready. Please try again in a moment.');
-            console.error('html-to-docx library (htmlDocx) not found.');
-            // Optionally try loading it dynamically here if needed, but CDN should handle it.
+            console.error('html-to-docx library (window.htmlDocx) not found.');
             return;
         }
         // --- MODIFICATION END ---
@@ -100,7 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
             copyStatus.textContent = "Generating DOCX...";
             copyStatus.style.display = 'inline';
 
-            const fileBuffer = await htmlDocx.asBlob(fullHtml);
+            // Use window.htmlDocx
+            const fileBuffer = await window.htmlDocx.asBlob(fullHtml);
 
             // Use FileSaver.js logic (often included or polyfilled) or create link manually
             const blobUrl = URL.createObjectURL(fileBuffer);
@@ -569,11 +569,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (generatedBrief) {
             briefOutputCode.textContent = generatedBrief;
             copyBriefBtn.disabled = false;
-            // Only enable download if library is loaded
-            if (typeof htmlDocx !== 'undefined') {
+            // Only enable download if library is loaded on window
+            if (typeof window.htmlDocx !== 'undefined') {
                  downloadDocxBtn.disabled = false;
             } else {
-                 console.warn("html-to-docx library not ready when brief generated.");
+                 console.warn("html-to-docx library (window.htmlDocx) not ready when brief generated.");
                  // Keep button disabled, maybe add a tooltip or message later if needed
                  downloadDocxBtn.disabled = true;
             }
